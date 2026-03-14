@@ -1,0 +1,743 @@
+﻿.neural-net-page {
+  --nn-green-border: #2ecc71;
+  --nn-green-soft: #dff7e8;
+  --nn-green-strong: #1e8449;
+  --nn-blue-border: #3498db;
+  --nn-blue-soft: #d9ecfa;
+  --nn-blue-mid: #85c1e9;
+  --nn-blue-post: #aed6f1;
+  --nn-red-border: #e74c3c;
+  --nn-red-soft: #f8d4cf;
+  --nn-line: #9aa8b5;
+}
+
+.neural-net-title {
+  margin: 0 0 0.35rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 3.1vw, 2.25rem);
+}
+
+.neural-net-lead {
+  margin: 0;
+  color: var(--muted);
+  max-width: 74ch;
+}
+
+.neural-net-network-section h2,
+.neural-net-page h2,
+.neural-net-page h3 {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+.neural-net-network-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.neural-net-stage-scroll {
+  margin-top: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+}
+
+.neural-net-stage-wrap {
+  min-width: 1130px;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.neural-net-stage {
+  position: relative;
+  height: 430px;
+  padding: 0.35rem 0.4rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(160deg, var(--surface), var(--bg-soft));
+  display: grid;
+  grid-template-columns: 280px minmax(120px, 1fr) 360px minmax(120px, 1fr) 250px;
+  gap: 0;
+}
+
+.neural-net-stage-actions {
+  display: grid;
+  grid-template-columns: 280px minmax(120px, 1fr) 360px minmax(120px, 1fr) 250px;
+  gap: 0;
+}
+
+.neural-net-hidden-visibility {
+  grid-column: 2;
+  justify-self: start;
+  align-self: center;
+  transform: translateX(-10px);
+}
+
+.neural-net-hidden-action-btn {
+  grid-column: 3;
+  justify-self: center;
+}
+
+.neural-net-output-action-btn {
+  grid-column: 5;
+  justify-self: center;
+}
+
+.neural-net-visibility-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 0.7rem;
+}
+
+.neural-net-inline-calcs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.neural-net-inline-calc {
+  position: absolute;
+  top: 20.5rem;
+  min-height: 58px;
+  width: max-content;
+  display: grid;
+  align-items: start;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms ease;
+}
+
+.neural-net-inline-calc-hidden {
+  left: 17%;
+  min-height: 90px;
+}
+
+.neural-net-inline-calc-output {
+  left: 61%;
+  min-height: 90px;
+}
+
+.neural-net-inline-calc.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.neural-net-layer-column {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: 64px 1fr;
+  grid-row: 1;
+}
+
+.neural-net-layer-input {
+  grid-column: 1;
+}
+
+.neural-net-layer-hidden {
+  grid-column: 3;
+}
+
+.neural-net-layer-output {
+  grid-column: 5;
+}
+
+.neural-net-layer-head {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  text-align: center;
+  gap: 0.45rem;
+}
+
+.neural-net-layer-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 24px;
+  padding-top: 0.15rem;
+}
+
+.neural-net-output-stack {
+  gap: 0;
+  justify-content: flex-start;
+  padding-top: 1rem;
+}
+
+.neural-net-output-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  max-width: 21ch;
+}
+
+.neural-net-input-node {
+  width: 260px;
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--nn-green-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.neural-net-input-part {
+  padding: 0.58rem 0.55rem;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.35rem;
+}
+
+.neural-net-input-raw {
+  background: var(--nn-green-soft);
+  border-right: 1px solid rgba(46, 204, 113, 0.35);
+}
+
+.neural-net-input-raw label,
+.neural-net-input-normalized span {
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.neural-net-input-raw label {
+  white-space: nowrap;
+}
+
+.neural-net-input-raw input {
+  width: 94px;
+  border: 1px solid #b9c8d6;
+  border-radius: 7px;
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.neural-net-input-raw input:focus {
+  outline: 2px solid rgba(46, 204, 113, 0.28);
+  border-color: var(--nn-green-border);
+}
+
+.neural-net-input-normalized {
+  background: #e8f8ee;
+}
+
+.neural-net-input-normalized strong {
+  min-width: 84px;
+  text-align: center;
+  padding: 0.28rem 0.45rem;
+  border-radius: 7px;
+  border: 1px solid rgba(46, 204, 113, 0.45);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--nn-green-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.neural-net-hidden-node {
+  position: relative;
+  width: 228px;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border: 1px solid var(--nn-blue-border);
+  border-radius: 9px;
+  overflow: visible;
+  background: #fff;
+}
+
+.neural-net-hidden-cell {
+  min-height: 46px;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.neural-net-hidden-pre {
+  background: var(--nn-blue-soft);
+}
+
+.neural-net-hidden-relu {
+  background: var(--nn-blue-mid);
+  color: #fff;
+}
+
+.neural-net-hidden-relu svg {
+  width: 36px;
+  height: 36px;
+}
+
+.neural-net-hidden-post {
+  background: var(--nn-blue-post);
+}
+
+.neural-net-output-wrapper {
+  position: relative;
+  width: 220px;
+  height: 160px;
+}
+
+.neural-net-output-node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 112px;
+  min-height: 46px;
+  border: 1px solid var(--nn-red-border);
+  border-radius: 11px;
+  background: var(--nn-red-soft);
+  display: grid;
+  place-items: center;
+}
+
+.neural-net-output-value {
+  font-size: 1.18rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.neural-net-prediction {
+  position: absolute;
+  top: calc(50% + 36px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  width: max-content;
+  min-height: 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.neural-net-bias {
+  position: absolute;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.neural-net-bias-hidden {
+  top: -24px;
+  left: -2px;
+  color: #1b6fa5;
+}
+
+.neural-net-bias-output {
+  top: -24px;
+  left: -2px;
+  color: #cc2f24;
+}
+
+.neural-net-bias-invisible {
+  visibility: hidden;
+}
+
+.neural-net-bias-forward {
+  animation: neuralNetBiasForward 0.8s ease;
+}
+
+.neural-net-bias-update {
+  animation: neuralNetBiasUpdate 0.8s ease;
+}
+
+.neural-net-connection-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.neural-net-conn-line {
+  stroke: var(--nn-line);
+  stroke-width: 2;
+}
+
+.neural-net-conn-text {
+  fill: #111827;
+  font-size: 0.88rem;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+}
+
+.neural-net-conn-hidden {
+  display: none;
+}
+
+.neural-net-conn-forward {
+  stroke: #28a665;
+  stroke-width: 2.7;
+}
+
+.neural-net-conn-update {
+  stroke: #d4463a;
+  stroke-width: 2.7;
+}
+
+.neural-net-conn-text-forward {
+  fill: #1f8f61;
+  font-weight: 700;
+}
+
+.neural-net-conn-text-update {
+  fill: #bf2f3a;
+  font-weight: 700;
+}
+
+.neural-net-node-forward {
+  animation: neuralNetNodeForward 0.8s ease;
+}
+
+.neural-net-node-update {
+  animation: neuralNetNodeUpdate 0.8s ease;
+}
+
+.neural-net-manual-panel {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.neural-net-manual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.neural-net-info-text {
+  margin: 0.6rem 0 0;
+  min-height: 42px;
+  color: var(--muted);
+}
+
+.neural-net-status {
+  margin: 0;
+  min-height: 42px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.neural-net-feedback {
+  margin: 0.6rem 0 0;
+  min-height: 32px;
+  font-weight: 700;
+}
+
+.neural-net-feedback.ok {
+  color: var(--ok);
+}
+
+.neural-net-feedback.bad {
+  color: #bf2f3a;
+}
+
+.neural-net-check {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.neural-net-formula-wrap {
+  min-height: 48px;
+  display: grid;
+  align-items: center;
+}
+
+.neural-net-formula {
+  margin: 0;
+  border-left: 4px solid rgba(13, 108, 157, 0.34);
+  background: rgba(13, 108, 157, 0.07);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.neural-net-formula-compact {
+  border-left-width: 3px;
+  padding: 0.34rem 0.46rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  width: max-content;
+  max-width: 100%;
+}
+
+.neural-net-formula-nowrap {
+  white-space: nowrap;
+}
+
+.neural-net-math {
+  font-family: "KaTeX_Main", "Times New Roman", serif;
+  letter-spacing: 0.005em;
+}
+
+.neural-net-math-op {
+  font-weight: 600;
+}
+
+.neural-net-math-value {
+  font-weight: 800;
+}
+
+.neural-net-math-neuron {
+  font-weight: 800;
+  color: #0f3f62;
+}
+
+.neural-net-math-input {
+  color: var(--nn-green-strong);
+}
+
+.neural-net-math-hidden {
+  color: #1b6fa5;
+}
+
+.neural-net-math-output {
+  color: #bf2f3a;
+}
+
+.neural-net-hidden-formula-list {
+  display: grid;
+  gap: 0.24rem;
+}
+
+.neural-net-muted {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.neural-net-action-stack {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.neural-net-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.neural-net-action-row-main {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.neural-net-eval-grid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.neural-net-eval-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.neural-net-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.neural-net-status-left {
+  margin: 0;
+  min-height: 24px;
+  color: var(--muted);
+}
+
+.neural-net-table-scroll {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.neural-net-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.neural-net-table th,
+.neural-net-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.45rem 0.55rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.neural-net-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #fff;
+  background: var(--brand);
+}
+
+.neural-net-field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.92rem;
+}
+
+.neural-net-field span {
+  color: var(--muted);
+}
+
+.neural-net-field input,
+.neural-net-field select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.neural-net-field input:focus,
+.neural-net-field select:focus {
+  outline: 2px solid rgba(13, 108, 157, 0.22);
+  border-color: var(--brand);
+}
+
+.neural-net-field-compact {
+  min-width: 110px;
+}
+
+.neural-net-btn {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.58rem 0.9rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--brand-strong);
+  background: var(--surface);
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.neural-net-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(9, 45, 67, 0.12);
+}
+
+.neural-net-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.neural-net-btn-primary {
+  background: var(--brand);
+  color: #fff;
+  border-color: transparent;
+}
+
+.neural-net-btn-secondary {
+  background: rgba(13, 108, 157, 0.15);
+}
+
+.neural-net-btn-accent {
+  background: var(--ok);
+  color: #fff;
+  border-color: transparent;
+}
+
+.neural-net-btn-danger {
+  background: #bf2f3a;
+  color: #fff;
+  border-color: transparent;
+}
+
+@keyframes neuralNetNodeForward {
+  0% {
+    box-shadow: 0 0 0 rgba(31, 143, 97, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(31, 143, 97, 0.26);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(31, 143, 97, 0);
+  }
+}
+
+@keyframes neuralNetNodeUpdate {
+  0% {
+    box-shadow: 0 0 0 rgba(191, 47, 58, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(191, 47, 58, 0.24);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(191, 47, 58, 0);
+  }
+}
+
+@keyframes neuralNetBiasForward {
+  0% {
+    text-shadow: 0 0 0 rgba(31, 143, 97, 0);
+  }
+  50% {
+    text-shadow: 0 0 8px rgba(31, 143, 97, 0.62);
+  }
+  100% {
+    text-shadow: 0 0 0 rgba(31, 143, 97, 0);
+  }
+}
+
+@keyframes neuralNetBiasUpdate {
+  0% {
+    text-shadow: 0 0 0 rgba(191, 47, 58, 0);
+  }
+  50% {
+    text-shadow: 0 0 8px rgba(191, 47, 58, 0.62);
+  }
+  100% {
+    text-shadow: 0 0 0 rgba(191, 47, 58, 0);
+  }
+}
+
+@media (max-width: 1100px) {
+  .neural-net-eval-grid,
+  .neural-net-manual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .neural-net-network-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .neural-net-status {
+    text-align: left;
+  }
+
+  .neural-net-stage-wrap {
+    min-width: 1080px;
+  }
+}

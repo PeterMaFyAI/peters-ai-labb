@@ -1,0 +1,204 @@
+.linear-regression-page-title {
+  margin: 0 0 0.4rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+}
+
+.linear-regression-page-lead {
+  margin: 0;
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+.linear-regression-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.linear-regression-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(280px, 1fr) minmax(460px, 2fr);
+}
+
+.linear-regression-gradient-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(320px, 1fr) minmax(500px, 1.4fr);
+}
+
+.linear-regression-table-wrap {
+  max-height: 74vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.linear-regression-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.linear-regression-table th,
+.linear-regression-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.65rem;
+  text-align: right;
+  font-size: 0.92rem;
+}
+
+.linear-regression-table th {
+  position: sticky;
+  top: 0;
+  text-align: center;
+  color: #ffffff;
+  background: var(--brand);
+  z-index: 1;
+}
+
+.linear-regression-plot-canvas {
+  width: 100%;
+  max-width: 100%;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.linear-regression-controls-grid {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.linear-regression-control-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: var(--bg-soft);
+}
+
+.linear-regression-control-card h3 {
+  margin: 0 0 0.6rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1rem;
+}
+
+.linear-regression-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.linear-regression-field input[type="number"],
+.linear-regression-field input[type="range"] {
+  width: 100%;
+}
+
+.linear-regression-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.linear-regression-field-compact {
+  margin-bottom: 0;
+}
+
+.linear-regression-row-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.linear-regression-equation {
+  min-height: 1.2em;
+  margin: 0 0 0.65rem;
+  font-weight: 700;
+}
+
+.linear-regression-equation-blue {
+  color: var(--brand);
+}
+
+.linear-regression-equation-green {
+  color: var(--ok);
+}
+
+.linear-regression-equation-red {
+  color: #bf2f3a;
+}
+
+.linear-regression-prediction {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.linear-regression-prediction input {
+  width: min(180px, 100%);
+}
+
+.linear-regression-prediction-result {
+  margin: 0;
+}
+
+.linear-regression-math-block {
+  border-left: 4px solid rgba(13, 108, 157, 0.48);
+  background: rgba(13, 108, 157, 0.07);
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.linear-regression-math-inline {
+  margin: 0.2rem 0 0.4rem;
+}
+
+.linear-regression-math-inline .katex-display,
+.linear-regression-math-block .katex-display {
+  margin: 0;
+}
+
+.linear-regression-math-inline .katex,
+.linear-regression-math-block .katex {
+  font-size: 1.16rem;
+}
+
+.linear-regression-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.85rem 0;
+}
+
+.linear-regression-status-grid {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--muted);
+}
+
+.linear-regression-status-grid p {
+  margin: 0;
+}
+
+.linear-regression-surface {
+  width: 100%;
+  height: min(70vh, 680px);
+}
+
+@media (max-width: 1100px) {
+  .linear-regression-layout,
+  .linear-regression-gradient-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .linear-regression-controls-grid {
+    grid-template-columns: 1fr;
+  }
+}
