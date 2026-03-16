@@ -34,9 +34,9 @@ interface SurfaceMesh {
   zValues: number[][];
 }
 
-const DEFAULT_INITIAL_WEIGHT = 0.075;
-const DEFAULT_INITIAL_BIAS = 0.45;
-const DEFAULT_LEARNING_RATE = 0.35;
+const DEFAULT_INITIAL_WEIGHT = 0.1;
+const DEFAULT_INITIAL_BIAS = 1;
+const DEFAULT_LEARNING_RATE = 0.1;
 
 const optimalParameters = calculateOptimalParameters(dataPoints);
 
