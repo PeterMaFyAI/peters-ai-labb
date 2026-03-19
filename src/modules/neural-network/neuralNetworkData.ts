@@ -25,7 +25,7 @@ export const INITIAL_PARAMS: NetworkParams = {
 };
 
 export const LEARNING_RATE_MANUAL = 0.02;
-export const LEARNING_RATE_AUTO = 0.0006;
+export const LEARNING_RATE_AUTO = 0.005;
 export const BATCH_SIZE = 1;
 
 export const trainingData: IrrigationSample[] = [

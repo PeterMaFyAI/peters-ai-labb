@@ -1,0 +1,183 @@
+.knn-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.knn-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.knn-title {
+  margin: 0 0 0.35rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+}
+
+.knn-lead {
+  margin: 0;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+.knn-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(360px, 1.5fr) minmax(290px, 1fr);
+}
+
+.knn-section-title {
+  margin: 0 0 0.8rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+.knn-plot-2d,
+.knn-plot-3d {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.knn-plot-2d {
+  height: min(72vh, 680px);
+}
+
+.knn-plot-3d {
+  height: min(72vh, 680px);
+}
+
+.knn-legend {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+}
+
+.knn-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.knn-legend-item i {
+  width: 0.82rem;
+  height: 0.82rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.knn-control-card {
+  margin-top: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.9rem;
+  background: var(--bg-soft);
+}
+
+.knn-control-card h3 {
+  margin: 0 0 0.55rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1rem;
+}
+
+.knn-input-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.knn-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.knn-field input,
+.knn-field select {
+  width: 100%;
+}
+
+.knn-query-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.knn-query-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.knn-query-inline .knn-query-input {
+  width: 14ch;
+  min-width: 14ch;
+}
+
+.knn-row {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.knn-inline-field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.knn-inline-field input {
+  width: 80px;
+}
+
+.knn-k-field {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.knn-k-field span {
+  white-space: nowrap;
+}
+
+.knn-query-info {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.knn-side-column {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+}
+
+.knn-side-column .knn-control-card {
+  margin-top: 0;
+}
+
+.knn-side-column p {
+  margin: 0 0 0.3rem;
+}
+
+.knn-feedback {
+  margin: 0.2rem 0 0;
+  min-height: 1.3rem;
+  color: var(--brand-strong);
+  font-weight: 600;
+}
+
+@media (max-width: 1080px) {
+  .knn-layout {
+    grid-template-columns: 1fr;
+  }
+}

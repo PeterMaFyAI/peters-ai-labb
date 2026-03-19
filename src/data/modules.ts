@@ -10,12 +10,12 @@ export const visualizationModules: LearningModule[] = [
     slug: "k-narmaste-grannar",
     imageUrl: knnImage,
     description:
-      "Utforska hur klassificering fungerar genom att jämföra avstånd mellan datapunkter.",
+      "Interaktiv KNN i 2D och 3D med klassificering, k-val och klustergenerering.",
     category: "Klassificering",
     targetGroup: "Gymnasiet / vuxenutbildning",
     route: "/visualiseringar/k-narmaste-grannar",
     type: "visualization",
-    status: "planned",
+    status: "ready",
     keywords: ["klassificering", "avstånd", "etiketter", "data"]
   },
   {
