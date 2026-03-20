@@ -9,6 +9,9 @@ import KNearestNeighborsPage from "./modules/k-nearest-neighbors/KNearestNeighbo
 import LinearRegressionPage from "./modules/linear-regression/LinearRegressionPage";
 import LinearRegressionGradientPage from "./modules/linear-regression/LinearRegressionGradientPage";
 import NeuralNetworkPage from "./modules/neural-network/NeuralNetworkPage";
+import KMeansPage from "./modules/k-means/KMeansPage";
+import AvstandPage from "./modules/avstand/AvstandPage";
+import NormaliseringPage from "./modules/normalisering/NormaliseringPage";
 
 function App(): JSX.Element {
   return (
@@ -31,6 +34,12 @@ function App(): JSX.Element {
         <Route
           path="visualiseringar/neuralt-natverk"
           element={<NeuralNetworkPage />}
+        />
+        <Route path="visualiseringar/k-means" element={<KMeansPage />} />
+        <Route path="visualiseringar/avstand" element={<AvstandPage />} />
+        <Route
+          path="visualiseringar/normalisering"
+          element={<NormaliseringPage />}
         />
         <Route path="laborationer" element={<LabsPage />} />
         <Route path="om-portalen" element={<AboutPage />} />

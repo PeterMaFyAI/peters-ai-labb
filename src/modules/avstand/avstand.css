@@ -1,0 +1,165 @@
+.avstand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.avstand-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.avstand-title {
+  margin: 0 0 0.35rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+}
+
+.avstand-lead {
+  margin: 0;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+.avstand-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(360px, 1.5fr) minmax(300px, 1fr);
+}
+
+.avstand-section-title {
+  margin: 0 0 0.8rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+.avstand-plot-2d,
+.avstand-plot-3d {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.avstand-plot-2d {
+  height: min(72vh, 680px);
+}
+
+.avstand-plot-3d {
+  height: min(72vh, 680px);
+}
+
+.avstand-drag-hint {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.avstand-coordinate-grid {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.avstand-point-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  padding: 0.8rem;
+}
+
+.avstand-point-card h3 {
+  margin: 0 0 0.55rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1rem;
+}
+
+.avstand-point-fields {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.avstand-point-fields label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.avstand-point-fields input {
+  width: 100%;
+}
+
+.avstand-side-column {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+}
+
+.avstand-side-column .avstand-control-card {
+  margin-top: 0;
+}
+
+.avstand-control-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: var(--bg-soft);
+}
+
+.avstand-control-card h3 {
+  margin: 0 0 0.55rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1rem;
+}
+
+.avstand-control-card p {
+  margin: 0 0 0.28rem;
+}
+
+.avstand-radio-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.avstand-radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.avstand-slider-field {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.avstand-slider-field input {
+  width: 100%;
+}
+
+.avstand-math-block {
+  margin-top: 0.65rem;
+  border-left: 4px solid rgba(13, 108, 157, 0.48);
+  background: rgba(13, 108, 157, 0.07);
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.avstand-math-block .katex-display {
+  margin: 0;
+}
+
+.avstand-math-block .katex {
+  font-size: 1.12rem;
+}
+
+@media (max-width: 1080px) {
+  .avstand-layout {
+    grid-template-columns: 1fr;
+  }
+}

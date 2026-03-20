@@ -1,0 +1,107 @@
+﻿.normalisering-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.normalisering-page-title {
+  margin: 0 0 0.4rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+}
+
+.normalisering-page-lead {
+  margin: 0;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+.normalisering-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.normalisering-plot {
+  width: 100%;
+  height: min(58vh, 450px);
+}
+
+.normalisering-table-wrap {
+  margin-top: 0.75rem;
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.normalisering-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.normalisering-table th,
+.normalisering-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.92rem;
+}
+
+.normalisering-table td {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.normalisering-table td:first-child,
+.normalisering-table th:first-child {
+  text-align: center;
+}
+
+.normalisering-table th {
+  position: sticky;
+  top: 0;
+  text-align: center;
+  color: #ffffff;
+  background: var(--brand);
+  z-index: 1;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.normalisering-table th:nth-child(3),
+.normalisering-table th:nth-child(5) {
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+
+.normalisering-table td:nth-child(3),
+.normalisering-table td:nth-child(5) {
+  background: rgba(13, 108, 157, 0.06);
+}
+
+.normalisering-explanation {
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+}
+
+.normalisering-math-block {
+  margin: 0.2rem 0;
+}
+
+.normalisering-math-block .katex-display {
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .normalisering-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .normalisering-plot {
+    height: min(52vh, 380px);
+  }
+}

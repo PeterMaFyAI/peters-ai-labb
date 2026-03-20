@@ -1,7 +1,10 @@
-﻿import type { LearningModule } from "../types/module";
+import type { LearningModule } from "../types/module";
 import knnImage from "../assets/module-images/knn.png";
 import linearRegressionImage from "../assets/module-images/linear-regression.png";
 import neuralNetworkImage from "../assets/module-images/neural-network.png";
+import kMeansImage from "../assets/module-images/k-means.png";
+import avstandImage from "../assets/module-images/avstand.png";
+import normaliseringImage from "../assets/module-images/normalisering.png";
 
 export const visualizationModules: LearningModule[] = [
   {
@@ -45,6 +48,47 @@ export const visualizationModules: LearningModule[] = [
     type: "visualization",
     status: "ready",
     keywords: ["noder", "lager", "vikter", "träning"]
+  },
+  {
+    id: "k-means",
+    title: "K-means",
+    slug: "k-means",
+    imageUrl: kMeansImage,
+    description: "Visualiseringen kommer snart.",
+    category: "Klustring",
+    targetGroup: "Gymnasiet / vuxenutbildning",
+    route: "/visualiseringar/k-means",
+    type: "visualization",
+    status: "planned",
+    keywords: ["klustring", "centroider", "gruppering", "distance"]
+  },
+  {
+    id: "avstand",
+    title: "Avstånd",
+    slug: "avstand",
+    imageUrl: avstandImage,
+    description:
+      "Interaktiv visualisering av euklidiskt avstånd, Manhattan-avstånd och cosinuslikhet i 2D/3D.",
+    category: "Matematik",
+    targetGroup: "Gymnasiet / vuxenutbildning",
+    route: "/visualiseringar/avstand",
+    type: "visualization",
+    status: "ready",
+    keywords: ["avstånd", "distans", "geometri", "mått"]
+  },
+  {
+    id: "normalisering",
+    title: "Normalisering",
+    slug: "normalisering",
+    imageUrl: normaliseringImage,
+    description:
+      "Jämför egenskaper före och efter standard score-normalisering med punktdiagram och tabell.",
+    category: "Matematik",
+    targetGroup: "Gymnasiet / vuxenutbildning",
+    route: "/visualiseringar/normalisering",
+    type: "visualization",
+    status: "ready",
+    keywords: ["skalning", "standardisering", "värden", "intervall"]
   }
 ];
 
@@ -66,4 +110,7 @@ export const plannedLabModules: LearningModule[] = [
   }
 ];
 
-export const featuredResources: LearningModule[] = [...visualizationModules, plannedLabModules[0]];
+export const featuredResources: LearningModule[] = [
+  ...visualizationModules,
+  plannedLabModules[0]
+];
