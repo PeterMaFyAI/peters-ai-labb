@@ -5,6 +5,7 @@ import neuralNetworkImage from "../assets/module-images/neural-network.png";
 import kMeansImage from "../assets/module-images/k-means.png";
 import avstandImage from "../assets/module-images/avstand.png";
 import normaliseringImage from "../assets/module-images/normalisering.png";
+import qLearningImage from "../assets/module-images/q-learning.png";
 
 export const visualizationModules: LearningModule[] = [
   {
@@ -89,6 +90,20 @@ export const visualizationModules: LearningModule[] = [
     type: "visualization",
     status: "ready",
     keywords: ["skalning", "standardisering", "värden", "intervall"]
+  },
+  {
+    id: "q-learning",
+    title: "Q-learning",
+    slug: "q-learning",
+    imageUrl: qLearningImage,
+    description:
+      "Träna en agent med Q-tabell, stegvis uppdatering, autokörning och redigerbart rutnät.",
+    category: "Förstärkningsinlärning",
+    targetGroup: "Gymnasiet / vuxenutbildning",
+    route: "/visualiseringar/q-learning",
+    type: "visualization",
+    status: "ready",
+    keywords: ["q-table", "agent", "belöning", "epsilon-greedy", "episoder"]
   }
 ];
 

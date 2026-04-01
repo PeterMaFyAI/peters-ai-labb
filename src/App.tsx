@@ -12,6 +12,7 @@ import NeuralNetworkPage from "./modules/neural-network/NeuralNetworkPage";
 import KMeansPage from "./modules/k-means/KMeansPage";
 import AvstandPage from "./modules/avstand/AvstandPage";
 import NormaliseringPage from "./modules/normalisering/NormaliseringPage";
+import QLearningPage from "./modules/q-learning/QLearningPage";
 
 function App(): JSX.Element {
   return (
@@ -41,6 +42,7 @@ function App(): JSX.Element {
           path="visualiseringar/normalisering"
           element={<NormaliseringPage />}
         />
+        <Route path="visualiseringar/q-learning" element={<QLearningPage />} />
         <Route path="laborationer" element={<LabsPage />} />
         <Route path="om-portalen" element={<AboutPage />} />
         <Route path="hem" element={<Navigate to="/" replace />} />
