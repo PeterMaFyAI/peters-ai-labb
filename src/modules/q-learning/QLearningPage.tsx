@@ -15,6 +15,13 @@ type TileItem = "none" | "apple" | "bird";
 type QRow = Record<Action, number>;
 type QTable = Record<string, QRow>;
 
+interface QStateDefinition {
+  key: string;
+  positionKey: string;
+  appleMask: number;
+  label: string;
+}
+
 interface QCalculation {
   stateLabel: string;
   nextStateLabel: string;
@@ -31,7 +38,7 @@ interface QCalculation {
 interface StepOutcome {
   qTable: QTable;
   agentKey: string;
-  collectedApples: Record<string, boolean>;
+  agentAppleMask: number;
   reward: number;
   done: boolean;
   episodeScore: number;
@@ -73,6 +80,7 @@ const ACTION_DELTAS: Record<Action, Coordinate> = {
 
 const EDITOR_SIDE = 4;
 const MAX_WALKABLE_CELLS = 16;
+const MAX_APPLES = 2;
 const MAX_STEPS_PER_EPISODE = 220;
 const OTHER_STATE_LABELS = [
   "B",
@@ -237,29 +245,278 @@ function normalizeItems(
   items: Record<string, TileItem>,
   walkableSet: Set<string>,
   startKey: string,
-  goalKey: string
+  goalKey: string,
+  labelMap: Record<string, string>
 ): Record<string, TileItem> {
   const next: Record<string, TileItem> = {};
+  const appleKeys: string[] = [];
+
   Object.entries(items).forEach(([key, item]) => {
     if (!walkableSet.has(key)) return;
     if (key === startKey || key === goalKey) return;
-    if (item === "apple" || item === "bird") {
+    if (item === "bird") {
       next[key] = item;
+      return;
+    }
+    if (item === "apple") {
+      appleKeys.push(key);
     }
   });
+
+  const sortedAppleKeys = [...appleKeys]
+    .sort((left, right) => {
+      const leftLabel = labelMap[left] ?? left;
+      const rightLabel = labelMap[right] ?? right;
+      return leftLabel.localeCompare(rightLabel);
+    })
+    .slice(0, MAX_APPLES);
+
+  sortedAppleKeys.forEach((key) => {
+    next[key] = "apple";
+  });
+
   return next;
+}
+
+function deriveAppleKeys(
+  cellItems: Record<string, TileItem>,
+  labelMap: Record<string, string>
+): string[] {
+  return Object.entries(cellItems)
+    .filter(([, item]) => item === "apple")
+    .map(([key]) => key)
+    .sort((left, right) => {
+      const leftLabel = labelMap[left] ?? left;
+      const rightLabel = labelMap[right] ?? right;
+      return leftLabel.localeCompare(rightLabel);
+    })
+    .slice(0, MAX_APPLES);
+}
+
+function createAppleIndexByKey(appleKeys: string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  appleKeys.forEach((key, index) => {
+    map[key] = index;
+  });
+  return map;
+}
+
+function encodeStateKey(positionKey: string, appleMask: number, expanded: boolean): string {
+  if (!expanded) return positionKey;
+  return `${positionKey}|${appleMask}`;
+}
+
+function normalizeAppleMask(
+  mask: number,
+  positionKey: string,
+  appleIndexByKey: Record<string, number>,
+  appleCount: number
+): number {
+  if (appleCount === 0) return 0;
+  const safeMask = mask & ((1 << appleCount) - 1);
+  const appleIndex = appleIndexByKey[positionKey];
+  if (appleIndex === undefined) return safeMask;
+  return safeMask | (1 << appleIndex);
+}
+
+function collectAppleInMask(
+  mask: number,
+  positionKey: string,
+  appleIndexByKey: Record<string, number>
+): number {
+  const appleIndex = appleIndexByKey[positionKey];
+  if (appleIndex === undefined) return mask;
+  return mask | (1 << appleIndex);
+}
+
+function buildCollectedApplesMap(
+  appleKeys: string[],
+  appleMask: number
+): Record<string, boolean> {
+  const collected: Record<string, boolean> = {};
+  appleKeys.forEach((key, index) => {
+    if ((appleMask & (1 << index)) !== 0) {
+      collected[key] = true;
+    }
+  });
+  return collected;
+}
+
+function formatStateLabel(
+  positionKey: string,
+  appleMask: number,
+  expanded: boolean,
+  appleKeys: string[],
+  labelMap: Record<string, string>
+): string {
+  const baseLabel = labelMap[positionKey] ?? "?";
+  if (!expanded || appleKeys.length === 0) return baseLabel;
+
+  const applesText = appleKeys
+    .map((_, index) => ((appleMask & (1 << index)) !== 0 ? "❌" : "🍎"))
+    .join(", ");
+  return `(${baseLabel},${applesText})`;
+}
+
+function buildGraphTransitions(
+  walkableKeys: string[],
+  walkableSet: Set<string>,
+  enabledActions: Action[],
+  terminalSet: Set<string>
+): Record<string, string[]> {
+  const edges: Record<string, string[]> = {};
+  walkableKeys.forEach((key) => {
+    if (terminalSet.has(key)) {
+      edges[key] = [];
+      return;
+    }
+    edges[key] = getValidActions(key, walkableSet, enabledActions).map((action) =>
+      nextStateFromAction(key, action)
+    );
+  });
+  return edges;
+}
+
+function getReachableNodes(startKey: string, edges: Record<string, string[]>): Set<string> {
+  const reachable = new Set<string>();
+  const queue: string[] = [startKey];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || reachable.has(current)) continue;
+    reachable.add(current);
+    (edges[current] ?? []).forEach((next) => {
+      if (!reachable.has(next)) {
+        queue.push(next);
+      }
+    });
+  }
+
+  return reachable;
+}
+
+function computeSccSizeByNode(
+  nodes: string[],
+  edges: Record<string, string[]>
+): Record<string, number> {
+  const visited = new Set<string>();
+  const order: string[] = [];
+
+  const dfsForward = (node: string) => {
+    if (visited.has(node)) return;
+    visited.add(node);
+    (edges[node] ?? []).forEach((next) => {
+      if (!visited.has(next)) {
+        dfsForward(next);
+      }
+    });
+    order.push(node);
+  };
+
+  nodes.forEach((node) => {
+    if (!visited.has(node)) {
+      dfsForward(node);
+    }
+  });
+
+  const reverseEdges: Record<string, string[]> = {};
+  nodes.forEach((node) => {
+    reverseEdges[node] = [];
+  });
+  nodes.forEach((node) => {
+    (edges[node] ?? []).forEach((next) => {
+      if (reverseEdges[next]) {
+        reverseEdges[next].push(node);
+      }
+    });
+  });
+
+  const assigned = new Set<string>();
+  const sizeByNode: Record<string, number> = {};
+
+  const dfsReverse = (node: string, component: string[]) => {
+    if (assigned.has(node)) return;
+    assigned.add(node);
+    component.push(node);
+    (reverseEdges[node] ?? []).forEach((previous) => {
+      if (!assigned.has(previous)) {
+        dfsReverse(previous, component);
+      }
+    });
+  };
+
+  for (let index = order.length - 1; index >= 0; index -= 1) {
+    const node = order[index];
+    if (assigned.has(node)) continue;
+    const component: string[] = [];
+    dfsReverse(node, component);
+    const componentSize = component.length;
+    component.forEach((member) => {
+      sizeByNode[member] = componentSize;
+    });
+  }
+
+  return sizeByNode;
+}
+
+function shouldExpandAppleStates(params: {
+  walkableKeys: string[];
+  walkableSet: Set<string>;
+  enabledActions: Action[];
+  startKey: string;
+  goalKey: string;
+  appleKeys: string[];
+  cellItems: Record<string, TileItem>;
+}): boolean {
+  const {
+    walkableKeys,
+    walkableSet,
+    enabledActions,
+    startKey,
+    goalKey,
+    appleKeys,
+    cellItems
+  } = params;
+
+  if (appleKeys.length === 0 || enabledActions.length === 0) return false;
+  if (!walkableSet.has(startKey)) return false;
+
+  const birdKeys = Object.entries(cellItems)
+    .filter(([, item]) => item === "bird")
+    .map(([key]) => key);
+  const terminalSet = new Set<string>([goalKey, ...birdKeys]);
+  const edges = buildGraphTransitions(
+    walkableKeys,
+    walkableSet,
+    enabledActions,
+    terminalSet
+  );
+  const reachable = getReachableNodes(startKey, edges);
+  const reachableNodes = walkableKeys.filter((key) => reachable.has(key));
+  if (reachableNodes.length === 0) return false;
+
+  const reachableEdges: Record<string, string[]> = {};
+  reachableNodes.forEach((key) => {
+    reachableEdges[key] = (edges[key] ?? []).filter((next) => reachable.has(next));
+  });
+
+  const sccSizeByNode = computeSccSizeByNode(reachableNodes, reachableEdges);
+  return appleKeys.some((appleKey) => (sccSizeByNode[appleKey] ?? 1) > 1);
 }
 
 function performStep(params: {
   qTable: QTable;
   agentKey: string;
-  collectedApples: Record<string, boolean>;
+  agentAppleMask: number;
   episodeScore: number;
   stepCount: number;
   walkableSet: Set<string>;
   goalKey: string;
   cellItems: Record<string, TileItem>;
   labelMap: Record<string, string>;
+  appleKeys: string[];
+  appleIndexByKey: Record<string, number>;
+  expandedStateSpace: boolean;
   validActionsByState: Record<string, Action[]>;
   alpha: number;
   gamma: number;
@@ -268,20 +525,31 @@ function performStep(params: {
   const {
     qTable,
     agentKey,
-    collectedApples,
+    agentAppleMask,
     episodeScore,
     stepCount,
     walkableSet,
     goalKey,
     cellItems,
     labelMap,
+    appleKeys,
+    appleIndexByKey,
+    expandedStateSpace,
     validActionsByState,
     alpha,
     gamma,
     epsilon
   } = params;
 
-  const row = qTable[agentKey] ?? makeZeroRow();
+  const appleCount = appleKeys.length;
+  const normalizedMask = normalizeAppleMask(
+    agentAppleMask,
+    agentKey,
+    appleIndexByKey,
+    appleCount
+  );
+  const currentStateKey = encodeStateKey(agentKey, normalizedMask, expandedStateSpace);
+  const row = qTable[currentStateKey] ?? makeZeroRow();
   const validActions = validActionsByState[agentKey] ?? [];
   const action = pickAction(row, epsilon, validActions);
   if (!action) {
@@ -293,7 +561,7 @@ function performStep(params: {
     return null;
   }
 
-  const nextCollected = { ...collectedApples };
+  let nextMask = normalizedMask;
   let reward = 0;
   const tileItem = cellItems[nextKey] ?? "none";
   const reachedGoal = nextKey === goalKey;
@@ -303,37 +571,55 @@ function performStep(params: {
     reward = -2;
   } else if (reachedGoal) {
     reward = 2;
-  } else if (tileItem === "apple" && !nextCollected[nextKey]) {
-    reward += 1;
-    nextCollected[nextKey] = true;
+  } else if (tileItem === "apple") {
+    const updatedMask = collectAppleInMask(nextMask, nextKey, appleIndexByKey);
+    if (updatedMask !== nextMask) {
+      reward += 1;
+    }
+    nextMask = updatedMask;
   }
+
+  nextMask = normalizeAppleMask(nextMask, nextKey, appleIndexByKey, appleCount);
 
   const terminal = reachedGoal || hitBird;
 
   const oldQ = row[action];
-  const nextRow = terminal ? undefined : qTable[nextKey];
+  const nextStateKey = encodeStateKey(nextKey, nextMask, expandedStateSpace);
+  const nextRow = terminal ? undefined : qTable[nextStateKey];
   const nextValidActions = terminal ? [] : validActionsByState[nextKey] ?? [];
   const maxNextQ = terminal ? 0 : maxQ(nextRow, nextValidActions);
   const target = reward + gamma * maxNextQ;
   const newQ = oldQ + alpha * (target - oldQ);
 
   const nextQTable = cloneQTable(qTable);
-  if (!nextQTable[agentKey]) {
-    nextQTable[agentKey] = makeZeroRow();
+  if (!nextQTable[currentStateKey]) {
+    nextQTable[currentStateKey] = makeZeroRow();
   }
-  nextQTable[agentKey][action] = newQ;
+  nextQTable[currentStateKey][action] = newQ;
 
   return {
     qTable: nextQTable,
     agentKey: nextKey,
-    collectedApples: nextCollected,
+    agentAppleMask: nextMask,
     reward,
     done: terminal,
     episodeScore: episodeScore + reward,
     stepCount: stepCount + 1,
     calculation: {
-      stateLabel: labelMap[agentKey] ?? "?",
-      nextStateLabel: labelMap[nextKey] ?? "?",
+      stateLabel: formatStateLabel(
+        agentKey,
+        normalizedMask,
+        expandedStateSpace,
+        appleKeys,
+        labelMap
+      ),
+      nextStateLabel: formatStateLabel(
+        nextKey,
+        nextMask,
+        expandedStateSpace,
+        appleKeys,
+        labelMap
+      ),
       action,
       reward,
       oldQ,
@@ -406,15 +692,6 @@ function QLearningPage(): JSX.Element {
     () => buildLabelMap(walkableKeys, startKey, goalKey),
     [walkableKeys, startKey, goalKey]
   );
-  const qStateKeys = useMemo(() => {
-    return walkableKeys
-      .filter((key) => key !== goalKey && cellItems[key] !== "bird")
-      .sort((left, right) => {
-        const leftLabel = labelMap[left] ?? "";
-        const rightLabel = labelMap[right] ?? "";
-        return leftLabel.localeCompare(rightLabel);
-      });
-  }, [cellItems, goalKey, labelMap, walkableKeys]);
 
   const [qTable, setQTable] = useState<QTable>(() =>
     createZeroQTable(
@@ -424,9 +701,7 @@ function QLearningPage(): JSX.Element {
     )
   );
   const [agentKey, setAgentKey] = useState(startKey);
-  const [collectedApples, setCollectedApples] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [agentAppleMask, setAgentAppleMask] = useState(0);
   const [episodeDone, setEpisodeDone] = useState(false);
   const [episodeScore, setEpisodeScore] = useState(0);
   const [stepCount, setStepCount] = useState(0);
@@ -465,6 +740,34 @@ function QLearningPage(): JSX.Element {
   }, []);
 
   const walkableSet = useMemo(() => new Set(walkableKeys), [walkableKeys]);
+  const normalizedItems = useMemo(
+    () => normalizeItems(cellItems, walkableSet, startKey, goalKey, labelMap),
+    [cellItems, goalKey, labelMap, startKey, walkableSet]
+  );
+  const appleKeys = useMemo(
+    () => deriveAppleKeys(normalizedItems, labelMap),
+    [labelMap, normalizedItems]
+  );
+  const appleIndexByKey = useMemo(
+    () => createAppleIndexByKey(appleKeys),
+    [appleKeys]
+  );
+
+  const normalizedAgentAppleMask = useMemo(
+    () =>
+      normalizeAppleMask(
+        agentAppleMask,
+        agentKey,
+        appleIndexByKey,
+        appleKeys.length
+      ),
+    [agentAppleMask, agentKey, appleIndexByKey, appleKeys.length]
+  );
+  const collectedApples = useMemo(
+    () => buildCollectedApplesMap(appleKeys, normalizedAgentAppleMask),
+    [appleKeys, normalizedAgentAppleMask]
+  );
+
   const editorCells = useMemo(() => {
     const cells: string[] = [];
     for (let y = 0; y < EDITOR_SIDE; y += 1) {
@@ -474,6 +777,7 @@ function QLearningPage(): JSX.Element {
     }
     return cells;
   }, []);
+
   const validActionsByState = useMemo(() => {
     const map: Record<string, Action[]> = {};
     walkableKeys.forEach((key) => {
@@ -481,9 +785,102 @@ function QLearningPage(): JSX.Element {
     });
     return map;
   }, [enabledActions, walkableKeys, walkableSet]);
-  const normalizedItems = useMemo(
-    () => normalizeItems(cellItems, walkableSet, startKey, goalKey),
-    [cellItems, goalKey, startKey, walkableSet]
+  const expandedStateSpace = useMemo(
+    () =>
+      shouldExpandAppleStates({
+        walkableKeys,
+        walkableSet,
+        enabledActions,
+        startKey,
+        goalKey,
+        appleKeys,
+        cellItems: normalizedItems
+      }),
+    [
+      appleKeys,
+      enabledActions,
+      goalKey,
+      normalizedItems,
+      startKey,
+      walkableKeys,
+      walkableSet
+    ]
+  );
+
+  const qStates = useMemo(() => {
+    const positions = walkableKeys
+      .filter((key) => key !== goalKey && normalizedItems[key] !== "bird")
+      .sort((left, right) => {
+        const leftLabel = labelMap[left] ?? "";
+        const rightLabel = labelMap[right] ?? "";
+        return leftLabel.localeCompare(rightLabel);
+      });
+
+    const states: QStateDefinition[] = [];
+    const combinations = expandedStateSpace ? 1 << appleKeys.length : 1;
+    positions.forEach((positionKey) => {
+      const forcedAppleIndex = appleIndexByKey[positionKey];
+
+      for (let mask = 0; mask < combinations; mask += 1) {
+        if (
+          expandedStateSpace &&
+          forcedAppleIndex !== undefined &&
+          (mask & (1 << forcedAppleIndex)) === 0
+        ) {
+          continue;
+        }
+
+        const normalizedMask = normalizeAppleMask(
+          mask,
+          positionKey,
+          appleIndexByKey,
+          appleKeys.length
+        );
+        states.push({
+          key: encodeStateKey(positionKey, normalizedMask, expandedStateSpace),
+          positionKey,
+          appleMask: normalizedMask,
+          label: formatStateLabel(
+            positionKey,
+            normalizedMask,
+            expandedStateSpace,
+            appleKeys,
+            labelMap
+          )
+        });
+      }
+    });
+
+    return states;
+  }, [
+    appleIndexByKey,
+    appleKeys,
+    expandedStateSpace,
+    goalKey,
+    labelMap,
+    normalizedItems,
+    walkableKeys
+  ]);
+
+  const qStateKeys = useMemo(() => qStates.map((state) => state.key), [qStates]);
+  const qStateLabelsByKey = useMemo(() => {
+    const map: Record<string, string> = {};
+    qStates.forEach((state) => {
+      map[state.key] = state.label;
+    });
+    return map;
+  }, [qStates]);
+  const validActionsByQState = useMemo(() => {
+    const map: Record<string, Action[]> = {};
+    qStates.forEach((state) => {
+      map[state.key] = validActionsByState[state.positionKey] ?? [];
+    });
+    return map;
+  }, [qStates, validActionsByState]);
+
+  const currentQStateKey = useMemo(
+    () => encodeStateKey(agentKey, normalizedAgentAppleMask, expandedStateSpace),
+    [agentKey, expandedStateSpace, normalizedAgentAppleMask]
   );
 
   const gridBounds = useMemo(() => {
@@ -535,8 +932,14 @@ function QLearningPage(): JSX.Element {
   }, [stopRequested]);
 
   useEffect(() => {
+    if (normalizedAgentAppleMask === agentAppleMask) return;
+    setAgentAppleMask(normalizedAgentAppleMask);
+  }, [agentAppleMask, normalizedAgentAppleMask]);
+
+  useEffect(() => {
     if (!editMode) return;
     setAgentKey(startKey);
+    setAgentAppleMask(0);
   }, [editMode, startKey]);
 
   useEffect(() => clearRewardFlashTimers, [clearRewardFlashTimers]);
@@ -570,7 +973,7 @@ function QLearningPage(): JSX.Element {
     (outcome: StepOutcome, currentEpisode: number, withFlash: boolean) => {
       setQTable(outcome.qTable);
       setAgentKey(outcome.agentKey);
-      setCollectedApples(outcome.collectedApples);
+      setAgentAppleMask(outcome.agentAppleMask);
       setEpisodeDone(outcome.done);
       setEpisodeScore(outcome.episodeScore);
       setStepCount(outcome.stepCount);
@@ -596,7 +999,7 @@ function QLearningPage(): JSX.Element {
   const resetEpisode = useCallback(
     (nextEpisodeIndex?: number, message?: string) => {
       setAgentKey(startKey);
-      setCollectedApples({});
+      setAgentAppleMask(0);
       setEpisodeDone(false);
       setEpisodeScore(0);
       setStepCount(0);
@@ -622,7 +1025,7 @@ function QLearningPage(): JSX.Element {
       setStopRequested(false);
       setEpisodeIndex(1);
       setAgentKey(startKey);
-      setCollectedApples({});
+      setAgentAppleMask(0);
       setEpisodeDone(false);
       setEpisodeScore(0);
       setStepCount(0);
@@ -645,13 +1048,16 @@ function QLearningPage(): JSX.Element {
     const outcome = performStep({
       qTable,
       agentKey,
-      collectedApples,
+      agentAppleMask: normalizedAgentAppleMask,
       episodeScore,
       stepCount,
       walkableSet,
       goalKey,
       cellItems: normalizedItems,
       labelMap,
+      appleKeys,
+      appleIndexByKey,
+      expandedStateSpace,
       validActionsByState,
       alpha,
       gamma,
@@ -660,7 +1066,9 @@ function QLearningPage(): JSX.Element {
 
     if (!outcome) {
       setStatusText(
-        `Inga giltiga drag finns från ${labelMap[agentKey] ?? "aktuellt tillstånd"}.`
+        `Inga giltiga drag finns från ${
+          qStateLabelsByKey[currentQStateKey] ?? "aktuellt tillstånd"
+        }.`
       );
       return;
     }
@@ -690,7 +1098,12 @@ function QLearningPage(): JSX.Element {
     for (let episodeNumber = 0; episodeNumber < episodeCount; episodeNumber += 1) {
       const activeEpisode = firstEpisode + episodeNumber;
       let localAgent = startKey;
-      let localCollected: Record<string, boolean> = {};
+      let localMask = normalizeAppleMask(
+        0,
+        startKey,
+        appleIndexByKey,
+        appleKeys.length
+      );
       let localScore = 0;
       let localStepCount = 0;
       let done = false;
@@ -698,7 +1111,7 @@ function QLearningPage(): JSX.Element {
 
       setEpisodeIndex(activeEpisode);
       setAgentKey(startKey);
-      setCollectedApples({});
+      setAgentAppleMask(localMask);
       setEpisodeDone(false);
       setEpisodeScore(0);
       setStepCount(0);
@@ -718,13 +1131,16 @@ function QLearningPage(): JSX.Element {
         const outcome = performStep({
           qTable: localQ,
           agentKey: localAgent,
-          collectedApples: localCollected,
+          agentAppleMask: localMask,
           episodeScore: localScore,
           stepCount: localStepCount,
           walkableSet,
           goalKey,
           cellItems: normalizedItems,
           labelMap,
+          appleKeys,
+          appleIndexByKey,
+          expandedStateSpace,
           validActionsByState,
           alpha,
           gamma,
@@ -734,16 +1150,20 @@ function QLearningPage(): JSX.Element {
         if (!outcome) {
           blocked = true;
           setStatusText(
-            `Episod ${activeEpisode} avbruten: inga giltiga drag från ${
-              labelMap[localAgent] ?? "aktuellt tillstånd"
-            }.`
+            `Episod ${activeEpisode} avbruten: inga giltiga drag från ${formatStateLabel(
+              localAgent,
+              localMask,
+              expandedStateSpace,
+              appleKeys,
+              labelMap
+            )}.`
           );
           break;
         }
 
         localQ = outcome.qTable;
         localAgent = outcome.agentKey;
-        localCollected = outcome.collectedApples;
+        localMask = outcome.agentAppleMask;
         localScore = outcome.episodeScore;
         localStepCount = outcome.stepCount;
         done = outcome.done;
@@ -780,11 +1200,14 @@ function QLearningPage(): JSX.Element {
     stopRequestedRef.current = false;
   }, [
     alpha,
+    appleIndexByKey,
+    appleKeys,
     animatedEpisodes,
     animationDelay,
     editMode,
     episodeIndex,
     epsilon,
+    expandedStateSpace,
     gamma,
     goalKey,
     isAutoRunning,
@@ -823,7 +1246,12 @@ function QLearningPage(): JSX.Element {
 
     for (let episodeNumber = 0; episodeNumber < episodeCount; episodeNumber += 1) {
       let localAgent = startKey;
-      let localCollected: Record<string, boolean> = {};
+      let localMask = normalizeAppleMask(
+        0,
+        startKey,
+        appleIndexByKey,
+        appleKeys.length
+      );
       let localScore = 0;
       let localStepCount = 0;
 
@@ -835,13 +1263,16 @@ function QLearningPage(): JSX.Element {
         const outcome = performStep({
           qTable: localQ,
           agentKey: localAgent,
-          collectedApples: localCollected,
+          agentAppleMask: localMask,
           episodeScore: localScore,
           stepCount: localStepCount,
           walkableSet,
           goalKey,
           cellItems: normalizedItems,
           labelMap,
+          appleKeys,
+          appleIndexByKey,
+          expandedStateSpace,
           validActionsByState,
           alpha,
           gamma,
@@ -854,7 +1285,7 @@ function QLearningPage(): JSX.Element {
 
         localQ = outcome.qTable;
         localAgent = outcome.agentKey;
-        localCollected = outcome.collectedApples;
+        localMask = outcome.agentAppleMask;
         localScore = outcome.episodeScore;
         localStepCount = outcome.stepCount;
 
@@ -978,6 +1409,7 @@ function QLearningPage(): JSX.Element {
       if (marker === "start") {
         setStartKey(targetKey);
         setAgentKey(targetKey);
+        setAgentAppleMask(0);
       } else {
         setGoalKey(targetKey);
       }
@@ -1009,6 +1441,11 @@ function QLearningPage(): JSX.Element {
     const current = normalizedItems[key] ?? "none";
     const nextItem: TileItem =
       current === "none" ? "apple" : current === "apple" ? "bird" : "none";
+
+    if (current === "none" && nextItem === "apple" && appleKeys.length >= MAX_APPLES) {
+      setEditorInfo("Max 2 äpplen tillåts i Q-learning-läget.");
+      return;
+    }
 
     setCellItems((previous) => {
       const next = { ...previous };
@@ -1210,10 +1647,10 @@ function QLearningPage(): JSX.Element {
                 <tbody>
                   {qStateKeys.map((stateKey) => (
                     <tr key={`row-${stateKey}`}>
-                      <td>{labelMap[stateKey]}</td>
+                      <td>{qStateLabelsByKey[stateKey]}</td>
                       {tableActions.map((action) => {
                         const isValidAction =
-                          validActionsByState[stateKey]?.includes(action) ?? false;
+                          validActionsByQState[stateKey]?.includes(action) ?? false;
                         return (
                           <td
                             key={`${stateKey}-${action}`}
