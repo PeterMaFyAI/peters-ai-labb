@@ -30,7 +30,7 @@
 .q-learning-main-grid {
   display: grid;
   gap: 0.9rem;
-  grid-template-columns: minmax(0, 1.15fr) minmax(330px, 0.85fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(560px, 1.35fr);
 }
 
 .q-card {
@@ -79,6 +79,14 @@
   display: grid;
   place-items: center;
   container-type: inline-size;
+}
+
+.q-cell-editable {
+  cursor: pointer;
+}
+
+.q-cell-drag-active {
+  cursor: grabbing;
 }
 
 .q-cell-blocked {
@@ -132,6 +140,11 @@
   height: 50%;
   display: grid;
   place-items: center;
+  font-family:
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    sans-serif;
   font-size: 50cqi;
   line-height: 1;
   transform: translate(-50%, -50%);
@@ -175,6 +188,39 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.q-edit-panel {
+  border: 1px dashed rgba(13, 108, 157, 0.35);
+  border-radius: 10px;
+  padding: 0.55rem 0.62rem;
+  background: rgba(13, 108, 157, 0.06);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.q-edit-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.q-action-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.8rem;
+}
+
+.q-action-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: #0a4f73;
+}
+
+.q-action-option input {
+  margin: 0;
 }
 
 .q-reward-chip,
@@ -279,6 +325,21 @@
   font-size: 0.92rem;
 }
 
+.q-calc-formula {
+  overflow-x: visible;
+  color: #0a3d59;
+}
+
+.q-calc-formula .katex-display {
+  margin: 0;
+}
+
+.q-calc-theory {
+  padding-bottom: 0.18rem;
+  margin-bottom: 0.05rem;
+  border-bottom: 1px dashed rgba(13, 108, 157, 0.28);
+}
+
 .q-controls-grid {
   display: grid;
   gap: 0.8rem;
@@ -373,70 +434,6 @@
   background: rgba(13, 108, 157, 0.14);
 }
 
-.q-editor-section .q-card-head p {
-  max-width: 88ch;
-}
-
-.q-editor-board-wrap {
-  margin-top: 0.4rem;
-  border: 1px solid #101820;
-  border-radius: 12px;
-  background: #04070b;
-  padding: 0.6rem;
-}
-
-.q-editor-board {
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 0.2rem;
-}
-
-.q-editor-cell {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 5px;
-  display: grid;
-  place-items: center;
-  user-select: none;
-}
-
-.q-editor-cell.blocked {
-  border: 1px solid var(--q-grid-line);
-  background: #020407;
-}
-
-.q-editor-cell.walkable {
-  border: 1px solid #d6e7f4;
-  background: #fff;
-}
-
-.q-editor-cell.start {
-  background: var(--q-green-soft);
-  border-color: rgba(42, 168, 110, 0.6);
-}
-
-.q-editor-cell.goal {
-  background: var(--q-red-soft);
-  border-color: rgba(217, 74, 67, 0.58);
-}
-
-.q-editor-cell.drag-active {
-  cursor: grab;
-}
-
-.q-editor-label {
-  position: absolute;
-  top: 0.1rem;
-  right: 0.18rem;
-  font-size: 0.56rem;
-  font-weight: 800;
-  color: #153b56;
-}
-
-.q-editor-item {
-  font-size: 0.76rem;
-}
-
 .q-editor-info,
 .q-editor-meta {
   margin: 0;
@@ -490,7 +487,4 @@
     font-size: 0.7rem;
   }
 
-  .q-editor-label {
-    font-size: 0.5rem;
-  }
 }

@@ -6,9 +6,11 @@ import {
   useState,
   type MouseEvent
 } from "react";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import "./qLearning.css";
 
-type Action = "right" | "down";
+type Action = "right" | "down" | "left" | "up";
 type TileItem = "none" | "apple" | "bird";
 type QRow = Record<Action, number>;
 type QTable = Record<string, QRow>;
@@ -49,24 +51,45 @@ interface Coordinate {
   y: number;
 }
 
-const ACTIONS: Action[] = ["right", "down"];
+const ALL_ACTIONS: Action[] = ["right", "down", "left", "up"];
 const ACTION_LABELS: Record<Action, string> = {
-  right: "Hoger",
-  down: "Ner"
+  right: "Höger",
+  down: "Ner",
+  left: "Vänster",
+  up: "Upp"
 };
 const ACTION_SYMBOLS: Record<Action, string> = {
-  right: "->",
-  down: "v"
+  right: "H",
+  down: "N",
+  left: "V",
+  up: "U"
 };
 const ACTION_DELTAS: Record<Action, Coordinate> = {
   right: { x: 1, y: 0 },
-  down: { x: 0, y: 1 }
+  down: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  up: { x: 0, y: -1 }
 };
 
-const EDITOR_SIDE = 10;
-const MAX_WALKABLE_CELLS = 10;
+const EDITOR_SIDE = 4;
+const MAX_WALKABLE_CELLS = 16;
 const MAX_STEPS_PER_EPISODE = 220;
-const OTHER_STATE_LABELS = ["B", "C", "D", "E", "F", "G", "H", "I"];
+const OTHER_STATE_LABELS = [
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "O"
+];
 const DEFAULT_START = "0,0";
 const DEFAULT_GOAL = "2,1";
 const DEFAULT_WALKABLE = ["0,0", "1,0", "2,0", "0,1", "1,1", "2,1"];
@@ -102,7 +125,9 @@ function sortKeys(keys: string[]): string[] {
 function makeZeroRow(): QRow {
   return {
     right: 0,
-    down: 0
+    down: 0,
+    left: 0,
+    up: 0
   };
 }
 
@@ -129,7 +154,9 @@ function alignQTable(previous: QTable, stateKeys: string[]): QTable {
     next[key] = existing
       ? {
           right: existing.right ?? 0,
-          down: existing.down ?? 0
+          down: existing.down ?? 0,
+          left: existing.left ?? 0,
+          up: existing.up ?? 0
         }
       : makeZeroRow();
   });
@@ -144,14 +171,29 @@ function formatSigned(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
 }
 
+function renderMath(expression: string, displayMode = true): { __html: string } {
+  return {
+    __html: katex.renderToString(expression, {
+      throwOnError: false,
+      displayMode
+    })
+  };
+}
+
 function nextStateFromAction(stateKey: string, action: Action): string {
   const currentCoord = parseKey(stateKey);
   const delta = ACTION_DELTAS[action];
   return keyFromXY(currentCoord.x + delta.x, currentCoord.y + delta.y);
 }
 
-function getValidActions(stateKey: string, walkableSet: Set<string>): Action[] {
-  return ACTIONS.filter((action) => walkableSet.has(nextStateFromAction(stateKey, action)));
+function getValidActions(
+  stateKey: string,
+  walkableSet: Set<string>,
+  enabledActions: Action[]
+): Action[] {
+  return enabledActions.filter((action) =>
+    walkableSet.has(nextStateFromAction(stateKey, action))
+  );
 }
 
 function maxQ(row: QRow | undefined, validActions: Action[]): number {
@@ -308,10 +350,12 @@ function performStep(params: {
 function hasPathToGoal(
   walkableSet: Set<string>,
   startKey: string,
-  goalKey: string
+  goalKey: string,
+  enabledActions: Action[]
 ): boolean {
   if (!walkableSet.has(startKey) || !walkableSet.has(goalKey)) return false;
   if (startKey === goalKey) return false;
+  if (enabledActions.length === 0) return false;
 
   const queue: string[] = [startKey];
   const visited = new Set<string>([startKey]);
@@ -322,7 +366,7 @@ function hasPathToGoal(
     if (current === goalKey) return true;
 
     const currentCoord = parseKey(current);
-    ACTIONS.forEach((action) => {
+    enabledActions.forEach((action) => {
       const delta = ACTION_DELTAS[action];
       const next = keyFromXY(currentCoord.x + delta.x, currentCoord.y + delta.y);
       if (!walkableSet.has(next) || visited.has(next)) return;
@@ -344,8 +388,8 @@ function cellVisualItem(
   if (key === startKey || key === goalKey) return "";
   const item = cellItems[key] ?? "none";
   if (item === "apple" && collectedApples[key]) return "";
-  if (item === "apple") return "🍎";
-  if (item === "bird") return "🐦";
+  if (item === "apple") return "\u{1F34E}";
+  if (item === "bird") return "\u{1F426}";
   return "";
 }
 
@@ -364,16 +408,20 @@ function QLearningPage(): JSX.Element {
   );
   const qStateKeys = useMemo(() => {
     return walkableKeys
-      .filter((key) => key !== goalKey)
+      .filter((key) => key !== goalKey && cellItems[key] !== "bird")
       .sort((left, right) => {
         const leftLabel = labelMap[left] ?? "";
         const rightLabel = labelMap[right] ?? "";
         return leftLabel.localeCompare(rightLabel);
       });
-  }, [goalKey, labelMap, walkableKeys]);
+  }, [cellItems, goalKey, labelMap, walkableKeys]);
 
   const [qTable, setQTable] = useState<QTable>(() =>
-    createZeroQTable(DEFAULT_WALKABLE.filter((key) => key !== DEFAULT_GOAL))
+    createZeroQTable(
+      DEFAULT_WALKABLE.filter(
+        (key) => key !== DEFAULT_GOAL && DEFAULT_ITEMS[key] !== "bird"
+      )
+    )
   );
   const [agentKey, setAgentKey] = useState(startKey);
   const [collectedApples, setCollectedApples] = useState<Record<string, boolean>>(
@@ -385,7 +433,7 @@ function QLearningPage(): JSX.Element {
   const [episodeIndex, setEpisodeIndex] = useState(1);
   const [lastReward, setLastReward] = useState(0);
   const [statusText, setStatusText] = useState(
-    "Stega for att se hur Q-tabellen uppdateras."
+    "Stega för att se hur Q-tabellen uppdateras."
   );
   const [calculation, setCalculation] = useState<QCalculation | null>(null);
 
@@ -403,20 +451,36 @@ function QLearningPage(): JSX.Element {
 
   const [scoreFlashes, setScoreFlashes] = useState<ScoreFlash[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const [enabledActions, setEnabledActions] = useState<Action[]>(["right", "down"]);
   const [dragToken, setDragToken] = useState<"start" | "goal" | null>(null);
   const [editorInfo, setEditorInfo] = useState("");
 
   const flashIdRef = useRef(0);
   const flashTimeoutsRef = useRef<number[]>([]);
+  const clearRewardFlashTimers = useCallback(() => {
+    flashTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    flashTimeoutsRef.current = [];
+  }, []);
 
   const walkableSet = useMemo(() => new Set(walkableKeys), [walkableKeys]);
+  const editorCells = useMemo(() => {
+    const cells: string[] = [];
+    for (let y = 0; y < EDITOR_SIDE; y += 1) {
+      for (let x = 0; x < EDITOR_SIDE; x += 1) {
+        cells.push(keyFromXY(x, y));
+      }
+    }
+    return cells;
+  }, []);
   const validActionsByState = useMemo(() => {
     const map: Record<string, Action[]> = {};
     walkableKeys.forEach((key) => {
-      map[key] = getValidActions(key, walkableSet);
+      map[key] = getValidActions(key, walkableSet, enabledActions);
     });
     return map;
-  }, [walkableKeys, walkableSet]);
+  }, [enabledActions, walkableKeys, walkableSet]);
   const normalizedItems = useMemo(
     () => normalizeItems(cellItems, walkableSet, startKey, goalKey),
     [cellItems, goalKey, startKey, walkableSet]
@@ -435,6 +499,8 @@ function QLearningPage(): JSX.Element {
   }, [walkableKeys]);
 
   const trainingCells = useMemo(() => {
+    if (editMode) return editorCells;
+
     const cells: string[] = [];
     for (let y = gridBounds.minY; y <= gridBounds.maxY; y += 1) {
       for (let x = gridBounds.minX; x <= gridBounds.maxX; x += 1) {
@@ -442,12 +508,22 @@ function QLearningPage(): JSX.Element {
       }
     }
     return cells;
-  }, [gridBounds.maxX, gridBounds.maxY, gridBounds.minX, gridBounds.minY]);
+  }, [
+    editMode,
+    editorCells,
+    gridBounds.maxX,
+    gridBounds.maxY,
+    gridBounds.minX,
+    gridBounds.minY
+  ]);
 
-  const trainingColumns = gridBounds.maxX - gridBounds.minX + 1;
+  const trainingColumns = editMode
+    ? EDITOR_SIDE
+    : gridBounds.maxX - gridBounds.minX + 1;
+  const tableActions = enabledActions;
   const hasGoalPath = useMemo(
-    () => hasPathToGoal(walkableSet, startKey, goalKey),
-    [goalKey, startKey, walkableSet]
+    () => hasPathToGoal(walkableSet, startKey, goalKey, enabledActions),
+    [enabledActions, goalKey, startKey, walkableSet]
   );
 
   useEffect(() => {
@@ -459,13 +535,11 @@ function QLearningPage(): JSX.Element {
   }, [stopRequested]);
 
   useEffect(() => {
-    return () => {
-      flashTimeoutsRef.current.forEach((timeoutId) => {
-        window.clearTimeout(timeoutId);
-      });
-      flashTimeoutsRef.current = [];
-    };
-  }, []);
+    if (!editMode) return;
+    setAgentKey(startKey);
+  }, [editMode, startKey]);
+
+  useEffect(() => clearRewardFlashTimers, [clearRewardFlashTimers]);
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -485,6 +559,9 @@ function QLearningPage(): JSX.Element {
 
     const timeoutId = window.setTimeout(() => {
       setScoreFlashes((previous) => previous.filter((flash) => flash.id !== nextId));
+      flashTimeoutsRef.current = flashTimeoutsRef.current.filter(
+        (id) => id !== timeoutId
+      );
     }, 920);
     flashTimeoutsRef.current.push(timeoutId);
   }, []);
@@ -503,12 +580,10 @@ function QLearningPage(): JSX.Element {
       setStatusText(
         `${outcome.calculation.stateLabel} --${
           ACTION_LABELS[outcome.action]
-        }--> ${outcome.calculation.nextStateLabel}. Beloning ${formatSigned(
+        }--> ${outcome.calculation.nextStateLabel}. Belöning ${formatSigned(
           outcome.reward
         )}.${
-          outcome.done
-            ? " Episoden ar klar. Klicka pa \"Ny episod\" for att ga tillbaka till A."
-            : ""
+          outcome.done ? " Episoden är klar." : ""
         }`
       );
       if (withFlash) {
@@ -540,6 +615,7 @@ function QLearningPage(): JSX.Element {
   const resetQForCurrentGrid = useCallback(
     (message: string) => {
       setQTable(createZeroQTable(qStateKeys));
+      clearRewardFlashTimers();
       setScoreFlashes([]);
       setIsAutoRunning(false);
       setAutoMode(null);
@@ -554,7 +630,7 @@ function QLearningPage(): JSX.Element {
       setCalculation(null);
       setStatusText(message);
     },
-    [qStateKeys, startKey]
+    [clearRewardFlashTimers, qStateKeys, startKey]
   );
 
   const handleManualStep = () => {
@@ -584,7 +660,7 @@ function QLearningPage(): JSX.Element {
 
     if (!outcome) {
       setStatusText(
-        `Inga giltiga drag finns fran ${labelMap[agentKey] ?? "aktuellt tillstand"}.`
+        `Inga giltiga drag finns från ${labelMap[agentKey] ?? "aktuellt tillstånd"}.`
       );
       return;
     }
@@ -594,7 +670,7 @@ function QLearningPage(): JSX.Element {
 
   const handleResetQ = () => {
     if (isAutoRunning) return;
-    resetQForCurrentGrid("Q-tabellen nollstalldes och episod 1 ar redo.");
+    resetQForCurrentGrid("Q-tabellen nollställdes och episod 1 är redo.");
   };
 
   const runAnimatedTraining = useCallback(async () => {
@@ -605,7 +681,7 @@ function QLearningPage(): JSX.Element {
     setAutoMode("animated");
     setStopRequested(false);
     stopRequestedRef.current = false;
-    setStatusText(`Animerad traning startad (${episodeCount} episoder).`);
+    setStatusText(`Animerad träning startad (${episodeCount} episoder).`);
 
     let localQ = cloneQTable(qTable);
     const firstEpisode = episodeIndex;
@@ -658,8 +734,8 @@ function QLearningPage(): JSX.Element {
         if (!outcome) {
           blocked = true;
           setStatusText(
-            `Episod ${activeEpisode} avbruten: inga giltiga drag fran ${
-              labelMap[localAgent] ?? "aktuellt tillstand"
+            `Episod ${activeEpisode} avbruten: inga giltiga drag från ${
+              labelMap[localAgent] ?? "aktuellt tillstånd"
             }.`
           );
           break;
@@ -684,7 +760,7 @@ function QLearningPage(): JSX.Element {
 
       if (!done && !blocked) {
         setStatusText(
-          `Episod ${activeEpisode} stoppades efter ${MAX_STEPS_PER_EPISODE} steg (ingen maltraff).`
+          `Episod ${activeEpisode} stoppades efter ${MAX_STEPS_PER_EPISODE} steg (ingen målträff).`
         );
       }
     }
@@ -693,9 +769,9 @@ function QLearningPage(): JSX.Element {
     setQTable(localQ);
 
     if (stopped) {
-      setStatusText("Animerad traning stoppad.");
+      setStatusText("Animerad träning stoppad.");
     } else {
-      resetEpisode(nextEpisode, `Animerad traning klar (${episodeCount} episoder).`);
+      resetEpisode(nextEpisode, `Animerad träning klar (${episodeCount} episoder).`);
     }
 
     setIsAutoRunning(false);
@@ -730,7 +806,7 @@ function QLearningPage(): JSX.Element {
 
     if (autoMode === "animated") {
       setStopRequested(true);
-      setStatusText("Stoppsignal skickad. Traning avslutas...");
+      setStatusText("Stoppsignal skickad. Träning avslutas...");
     }
   };
 
@@ -740,11 +816,10 @@ function QLearningPage(): JSX.Element {
     const episodeCount = Math.max(1, Math.floor(fastEpisodes || 1));
     setIsAutoRunning(true);
     setAutoMode("fast");
-    setStatusText(`Snabbtraning kor ${episodeCount} episoder...`);
+    setStatusText(`Snabbträning kör ${episodeCount} episoder...`);
 
     let localQ = cloneQTable(qTable);
     let nextEpisode = episodeIndex;
-    let lastCalculation: QCalculation | null = calculation;
 
     for (let episodeNumber = 0; episodeNumber < episodeCount; episodeNumber += 1) {
       let localAgent = startKey;
@@ -782,7 +857,6 @@ function QLearningPage(): JSX.Element {
         localCollected = outcome.collectedApples;
         localScore = outcome.episodeScore;
         localStepCount = outcome.stepCount;
-        lastCalculation = outcome.calculation;
 
         if (outcome.done) {
           break;
@@ -793,10 +867,9 @@ function QLearningPage(): JSX.Element {
     }
 
     setQTable(localQ);
-    setCalculation(lastCalculation);
     resetEpisode(
       nextEpisode,
-      `Snabbtraning klar: ${episodeCount} episoder genomforda utan animation.`
+      `Snabbträning klar: ${episodeCount} episoder genomförda utan animation.`
     );
     setIsAutoRunning(false);
     setAutoMode(null);
@@ -807,15 +880,29 @@ function QLearningPage(): JSX.Element {
     if (!editMode) {
       setEditMode(true);
       setEditorInfo(
-        "Redigeringslage aktivt. Vansterklick: lagg till/ta bort ruta. Hogerklick: neutral -> apple -> fagel."
+        "Redigeringsläge aktivt i miljön (4x4). Vänsterklick: lägg till/ta bort ruta. Högerklick: neutral -> äpple -> fågel. Dra A/S för att flytta start/mål."
       );
-      resetQForCurrentGrid("Q-tabellen nollstalldes nar redigeringslaget startade.");
+      resetQForCurrentGrid("Q-tabellen nollställdes när redigeringsläget startade.");
       return;
     }
 
     setEditMode(false);
     setEditorInfo("");
-    resetQForCurrentGrid("Ny Q-tabell initierad nar redigeringslaget avslutades.");
+    resetQForCurrentGrid("Ny Q-tabell initierad när redigeringsläget avslutades.");
+  };
+
+  const handleActionToggle = (action: Action) => {
+    if (!editMode || isAutoRunning) return;
+
+    setEnabledActions((previous) => {
+      if (previous.includes(action)) {
+        return previous.filter((item) => item !== action);
+      }
+
+      return ALL_ACTIONS.filter(
+        (candidate) => candidate === action || previous.includes(candidate)
+      );
+    });
   };
 
   const handleEditorMouseDown = (
@@ -847,7 +934,7 @@ function QLearningPage(): JSX.Element {
     }
 
     if (walkableKeys.length >= MAX_WALKABLE_CELLS) {
-      setEditorInfo("Max tio rutor tillatet (inklusive A och S).");
+      setEditorInfo("Max 16 rutor tillåtet (inklusive A och S).");
       return;
     }
 
@@ -870,7 +957,7 @@ function QLearningPage(): JSX.Element {
       const targetExists = walkableSet.has(targetKey);
 
       if (!targetExists && walkableKeys.length >= MAX_WALKABLE_CELLS) {
-        setEditorInfo("Max tio rutor tillatet.");
+        setEditorInfo("Max 16 rutor tillåtet.");
         return;
       }
 
@@ -890,10 +977,11 @@ function QLearningPage(): JSX.Element {
 
       if (marker === "start") {
         setStartKey(targetKey);
+        setAgentKey(targetKey);
       } else {
         setGoalKey(targetKey);
       }
-      setEditorInfo(`${marker === "start" ? "Start" : "Mal"} flyttad.`);
+      setEditorInfo(`${marker === "start" ? "Start" : "Mål"} flyttad.`);
     },
     [goalKey, startKey, walkableKeys.length, walkableSet]
   );
@@ -933,26 +1021,20 @@ function QLearningPage(): JSX.Element {
     });
   };
 
-  const editorCells = useMemo(() => {
-    const cells: string[] = [];
-    for (let y = 0; y < EDITOR_SIDE; y += 1) {
-      for (let x = 0; x < EDITOR_SIDE; x += 1) {
-        cells.push(keyFromXY(x, y));
-      }
-    }
-    return cells;
-  }, []);
-
   const stateCount = walkableKeys.length;
-  const canTrain = hasGoalPath && stateCount >= 2;
+  const canTrain = hasGoalPath && stateCount >= 2 && tableActions.length > 0;
+  const selectedActionsText =
+    tableActions.length > 0
+      ? tableActions.map((action) => ACTION_LABELS[action]).join(", ")
+      : "inga actions valda";
 
   return (
     <div className="container page-flow q-learning-page">
       <section className="section">
-        <h1 className="q-learning-title">Q-learning: masken och appeljakten</h1>
+        <h1 className="q-learning-title">Q-learning: masken och äppeljakten</h1>
         <p className="q-learning-lead">
-          Utforska forstarkningsinlarning steg for steg. Agenten (🐛) lar sig
-          hitta till malet S med hjalp av beloningar, Q-tabell och epsilon-greedy.
+          Utforska förstärkningsinlärning steg för steg. Agenten ({"\u{1F41B}"}) lär sig
+          hitta till målet S med hjälp av belöningar, Q-tabell och epsilon-greedy.
         </p>
 
         <div className="q-learning-toolbar">
@@ -961,14 +1043,14 @@ function QLearningPage(): JSX.Element {
             onClick={toggleEditMode}
             disabled={isAutoRunning}
           >
-            {editMode ? "Lamna redigeringslage" : "Redigeringslage (10x10)"}
+            {editMode ? "Lämna redigeringsläge" : "Redigeringsläge (4x4)"}
           </button>
           <button
             className="q-btn"
             onClick={handleResetQ}
             disabled={isAutoRunning}
           >
-            Nollstall Q-tabell
+            Nollställ Q-tabell
           </button>
         </div>
       </section>
@@ -977,9 +1059,9 @@ function QLearningPage(): JSX.Element {
         <div className="q-learning-main-grid">
           <article className="q-card">
             <div className="q-card-head">
-              <h2>Miljo</h2>
+              <h2>Miljö</h2>
               <p>
-                Episod {episodeIndex} - steg {stepCount} - poang{" "}
+                Episod {episodeIndex} - steg {stepCount} - poäng{" "}
                 <strong>{episodeScore.toFixed(1)}</strong>
               </p>
             </div>
@@ -1012,7 +1094,12 @@ function QLearningPage(): JSX.Element {
                         isWalkable ? "q-cell-walkable" : "q-cell-blocked"
                       } ${isStart ? "q-cell-start" : ""} ${
                         isGoal ? "q-cell-goal" : ""
-                      } ${isAgent ? "q-cell-agent" : ""}`}
+                      } ${isAgent ? "q-cell-agent" : ""} ${
+                        editMode ? "q-cell-editable" : ""
+                      } ${dragToken ? "q-cell-drag-active" : ""}`}
+                      onMouseDown={(event) => handleEditorMouseDown(event, key)}
+                      onMouseUp={(event) => handleEditorMouseUp(event, key)}
+                      onContextMenu={(event) => handleEditorRightClick(event, key)}
                     >
                       {isWalkable ? (
                         <>
@@ -1024,7 +1111,7 @@ function QLearningPage(): JSX.Element {
                           ) : null}
                           {isAgent ? (
                             <span className="q-cell-agent-icon" aria-hidden="true">
-                              🐛
+                              {"\u{1F41B}"}
                             </span>
                           ) : null}
                         </>
@@ -1048,13 +1135,41 @@ function QLearningPage(): JSX.Element {
               </div>
             </div>
 
+            {editMode ? (
+              <div className="q-edit-panel">
+                <p className="q-edit-help">
+                  Redigera direkt i miljön (4x4): vänsterklick lägger till/tar bort
+                  gångbar ruta, högerklick växlar neutral till äpple till fågel, och
+                  dra A/S för att flytta start/mål.
+                </p>
+                <div className="q-action-picker" role="group" aria-label="Tillåtna actions">
+                  {ALL_ACTIONS.map((action) => (
+                    <label key={`allow-${action}`} className="q-action-option">
+                      <input
+                        type="checkbox"
+                        checked={enabledActions.includes(action)}
+                        onChange={() => handleActionToggle(action)}
+                        disabled={isAutoRunning}
+                      />
+                      <span>{ACTION_LABELS[action]}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="q-editor-info">{editorInfo}</p>
+                <p className="q-editor-meta">
+                  Gångbara rutor: {stateCount}/{MAX_WALKABLE_CELLS}. Start A och mål S
+                  räknas alltid med.
+                </p>
+              </div>
+            ) : null}
+
             <div className="q-status-line">
               <span
                 className={`q-reward-chip ${
                   lastReward >= 0 ? "positive" : "negative"
                 }`}
               >
-                Senaste beloning: {formatSigned(lastReward)}
+                Senaste belöning: {formatSigned(lastReward)}
               </span>
               <span
                 className={`q-episode-chip ${episodeDone ? "done" : "running"}`}
@@ -1067,8 +1182,9 @@ function QLearningPage(): JSX.Element {
 
             {!canTrain ? (
               <p className="q-warning">
-                Start och mal ar inte sammankopplade med gangbara rutor. Traning
-                blir da mycket svag.
+                {tableActions.length === 0
+                  ? "Välj minst en tillåten action i redigeringsläget för att kunna träna."
+                  : "Start och mål är inte sammankopplade med gångbara rutor utifrån valda actions."}
               </p>
             ) : null}
           </article>
@@ -1076,14 +1192,17 @@ function QLearningPage(): JSX.Element {
           <article className="q-card">
             <div className="q-card-head">
               <h2>Q-tabell</h2>
-              <p>En rad per tillstand utom S. Kolumner: hoger och ner.</p>
+              <p>
+                En rad per tillstånd utom S och fågelrutor. Kolumner:{" "}
+                {selectedActionsText}.
+              </p>
             </div>
             <div className="q-table-wrap">
               <table className="q-table">
                 <thead>
                   <tr>
-                    <th>Tillstand</th>
-                    {ACTIONS.map((action) => (
+                    <th>Tillstånd</th>
+                    {tableActions.map((action) => (
                       <th key={`head-${action}`}>{ACTION_LABELS[action]}</th>
                     ))}
                   </tr>
@@ -1092,7 +1211,7 @@ function QLearningPage(): JSX.Element {
                   {qStateKeys.map((stateKey) => (
                     <tr key={`row-${stateKey}`}>
                       <td>{labelMap[stateKey]}</td>
-                      {ACTIONS.map((action) => {
+                      {tableActions.map((action) => {
                         const isValidAction =
                           validActionsByState[stateKey]?.includes(action) ?? false;
                         return (
@@ -1113,22 +1232,36 @@ function QLearningPage(): JSX.Element {
             </div>
 
             <div className="q-calc-box">
-              <h3>Aktuell berakning</h3>
+              <h3>Aktuell beräkning</h3>
+              <div
+                className="q-calc-formula q-calc-theory"
+                dangerouslySetInnerHTML={renderMath(
+                  String.raw`Q(s, a) = Q(s, a) + \alpha \cdot \left(r + \gamma \cdot \max_{a'} Q(s', a') - Q(s, a)\right)`
+                )}
+              />
               {calculation ? (
                 <>
-                  <p>
-                    Q({calculation.stateLabel}, {ACTION_SYMBOLS[calculation.action]}) ={" "}
-                    {calculation.oldQ.toFixed(3)} + {calculation.alpha.toFixed(2)} * (
-                    {calculation.reward.toFixed(2)} + {calculation.gamma.toFixed(2)} *{" "}
-                    {calculation.maxNextQ.toFixed(3)} - {calculation.oldQ.toFixed(3)})
-                  </p>
-                  <p>
-                    Target = {calculation.target.toFixed(3)} och nytt Q-varde ={" "}
-                    <strong>{calculation.newQ.toFixed(3)}</strong>
-                  </p>
+                  <div
+                    className="q-calc-formula"
+                    dangerouslySetInnerHTML={renderMath(
+                      String.raw`Q(${calculation.stateLabel}, \mathrm{${
+                        ACTION_SYMBOLS[calculation.action]
+                      }}) = ${calculation.oldQ.toFixed(2)} + ${calculation.alpha.toFixed(
+                        2
+                      )} \cdot \left(${calculation.reward.toFixed(
+                        2
+                      )} + ${calculation.gamma.toFixed(
+                        2
+                      )} \cdot ${calculation.maxNextQ.toFixed(
+                        2
+                      )} - ${calculation.oldQ.toFixed(2)}\right) = ${calculation.newQ.toFixed(
+                        2
+                      )}`
+                    )}
+                  />
                 </>
               ) : (
-                <p>Ingen uppdatering an. Klicka pa "Stega ett drag".</p>
+                <p>Ingen uppdatering än. Klicka på "Stega ett drag".</p>
               )}
             </div>
           </article>
@@ -1138,7 +1271,7 @@ function QLearningPage(): JSX.Element {
       <section className="section">
         <div className="q-controls-grid">
           <article className="q-controls-card">
-            <h2>Stegvis traning</h2>
+            <h2>Stegvis träning</h2>
             <div className="q-btn-row">
               <button
                 className="q-btn q-btn-primary"
@@ -1199,7 +1332,7 @@ function QLearningPage(): JSX.Element {
           </article>
 
           <article className="q-controls-card">
-            <h2>Automatisk traning (med animation)</h2>
+            <h2>Automatisk träning (med animation)</h2>
             <div className="q-param-grid">
               <label className="q-field">
                 <span>Hastighet</span>
@@ -1242,13 +1375,13 @@ function QLearningPage(): JSX.Element {
                   ? stopRequested
                     ? "Stoppar..."
                     : "Stoppa animation"
-                  : "Starta animerad traning"}
+                  : "Starta animerad träning"}
               </button>
             </div>
           </article>
 
           <article className="q-controls-card">
-            <h2>Snabbtraning (utan animation)</h2>
+            <h2>Snabbträning (utan animation)</h2>
             <div className="q-param-grid">
               <label className="q-field">
                 <span>Episoder</span>
@@ -1272,71 +1405,13 @@ function QLearningPage(): JSX.Element {
                 onClick={handleFastTraining}
                 disabled={isAutoRunning || !canTrain || editMode}
               >
-                Kor snabbtraning
+                Kör snabbträning
               </button>
             </div>
           </article>
         </div>
       </section>
 
-      {editMode ? (
-        <section className="section q-editor-section">
-          <div className="q-card-head">
-            <h2>Editor (10x10)</h2>
-            <p>
-              Svart bakgrund. Placera vita gangbara rutor med vansterklick.
-              Hogerklick pa vit ruta vaxlar neutral till apple (+1) till fagel (-2).
-            </p>
-          </div>
-
-          <div className="q-editor-board-wrap">
-            <div className="q-editor-board">
-              {editorCells.map((key) => {
-                const isWalkable = walkableSet.has(key);
-                const isStart = key === startKey;
-                const isGoal = key === goalKey;
-                const item = normalizedItems[key] ?? "none";
-
-                return (
-                  <div
-                    key={`editor-${key}`}
-                    className={`q-editor-cell ${
-                      isWalkable ? "walkable" : "blocked"
-                    } ${isStart ? "start" : ""} ${isGoal ? "goal" : ""} ${
-                      dragToken ? "drag-active" : ""
-                    }`}
-                    onMouseDown={(event) => handleEditorMouseDown(event, key)}
-                    onMouseUp={(event) => handleEditorMouseUp(event, key)}
-                    onContextMenu={(event) => handleEditorRightClick(event, key)}
-                  >
-                    {isWalkable ? (
-                      <>
-                        <span className="q-editor-label">{labelMap[key] ?? ""}</span>
-                        {!isStart && !isGoal && item === "apple" ? (
-                          <span className="q-editor-item" aria-hidden="true">
-                            🍎
-                          </span>
-                        ) : null}
-                        {!isStart && !isGoal && item === "bird" ? (
-                          <span className="q-editor-item" aria-hidden="true">
-                            🐦
-                          </span>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="q-editor-info">{editorInfo}</p>
-          <p className="q-editor-meta">
-            Gangbara rutor: {stateCount}/{MAX_WALKABLE_CELLS}. Start A och mal S
-            raknas alltid med.
-          </p>
-        </section>
-      ) : null}
     </div>
   );
 }
