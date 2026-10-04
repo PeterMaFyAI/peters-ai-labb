@@ -1,0 +1,722 @@
+.container.kmeans-page {
+  width: min(1440px, 94vw);
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.kmeans-header {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 1.5rem;
+  align-items: center;
+}
+
+.kmeans-header .section-eyebrow {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 0.75rem;
+}
+
+.kmeans-header h1 {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0.1rem 0 0;
+  font: 700 2rem / 1.15 "Space Grotesk", sans-serif;
+}
+
+.kmeans-header .lead {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  max-width: 80ch;
+  font-size: 0.9rem;
+}
+
+.kmeans-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 25vw, 340px);
+  gap: 1rem;
+  height: clamp(450px, calc(100svh - 188px), 720px);
+  align-items: stretch;
+}
+
+.section.kmeans-plot-section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.85rem 1rem;
+}
+
+.kmeans-plot-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+  padding: 0.15rem 0.4rem 0.6rem;
+}
+
+.kmeans-plot-heading h2 {
+  margin: 0;
+  font: 700 1.05rem "Space Grotesk", sans-serif;
+}
+
+.kmeans-data-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.kmeans-plot-container {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: white;
+}
+
+.kmeans-plot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: "Manrope", sans-serif;
+}
+
+.kmeans-axis-tick line {
+  stroke: #697b8c;
+}
+
+.kmeans-axis-tick text {
+  fill: #526579;
+  font-size: 12px;
+}
+
+.kmeans-axis-name {
+  fill: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.kmeans-plot-empty {
+  fill: var(--muted);
+  font-size: 17px;
+}
+
+.kmeans-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1.15rem;
+  padding: 0.2rem 0.4rem;
+  min-height: 2.5rem;
+  align-content: center;
+}
+
+.kmeans-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.kmeans-dot,
+.kmeans-ring {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #17202b;
+}
+
+.kmeans-new-point-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.kmeans-ring {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 1px solid #718399;
+  background: transparent;
+}
+
+.kmeans-cross {
+  font-size: 1.4rem;
+  line-height: 0.8;
+}
+
+.kmeans-feedback {
+  margin: 0.65rem 0 0;
+  border-radius: 9px;
+  padding: 0.55rem 0.65rem;
+  background: var(--bg-soft);
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.kmeans-preparation {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 1rem;
+  padding-top: 2rem;
+  align-items: start;
+}
+
+.section.kmeans-example-panel {
+  min-width: 0;
+  padding: 1.35rem;
+}
+
+.kmeans-example-panel h2 {
+  margin: 0 0 0.4rem;
+  font: 700 1.15rem "Space Grotesk", sans-serif;
+}
+
+.kmeans-example-panel > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.kmeans-example-panel > .kmeans-hint {
+  margin-top: 0.85rem;
+  font-size: 0.8rem;
+}
+
+.kmeans-example-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.kmeans-example-button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kmeans-example-button strong {
+  font-size: 0.92rem;
+}
+
+.kmeans-example-button span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.kmeans-example-button:hover,
+.kmeans-example-button[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: #eaf4fb;
+}
+
+.section.kmeans-control-panel {
+  min-width: 0;
+  padding: 1.35rem;
+}
+
+.kmeans-panel-heading {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+}
+
+.kmeans-panel-icon {
+  flex: 0 0 2.4rem;
+  height: 2.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--text);
+  background: #eef1f5;
+}
+
+.kmeans-panel-icon-blue {
+  color: var(--brand);
+  background: #e8f3fa;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.kmeans-panel-heading h2 {
+  margin: 0;
+  font: 700 1.15rem "Space Grotesk", sans-serif;
+}
+
+.kmeans-panel-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.kmeans-generation-fields,
+.kmeans-parameter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 0.85rem;
+}
+
+.kmeans-page .btn {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.kmeans-page button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.kmeans-page .btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.kmeans-page button:focus-visible,
+.kmeans-page input:focus-visible,
+.kmeans-page select:focus-visible {
+  outline: 3px solid #4598bd;
+  outline-offset: 3px;
+}
+
+.kmeans-hint {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.kmeans-editor {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line);
+}
+
+.kmeans-editor h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.92rem;
+}
+
+.kmeans-cluster-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+  gap: 0.5rem;
+}
+
+.kmeans-cluster-button {
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--text);
+  font: 700 0.85rem "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.kmeans-cluster-button small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.kmeans-cluster-button:hover,
+.kmeans-cluster-button[aria-pressed="true"] {
+  background: #eaf4fb;
+  border-color: var(--brand);
+}
+
+.kmeans-editor-placeholder {
+  margin: 0.85rem 0 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.kmeans-cluster-parameters {
+  margin-top: 1rem;
+}
+
+.kmeans-parameter-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.kmeans-parameter output {
+  color: var(--brand-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kmeans-parameter input {
+  display: block;
+  width: 100%;
+  margin: 0.6rem 0 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.kmeans-covariance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.25rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  font-size: 0.86rem;
+}
+
+.kmeans-covariance table {
+  border-left: 2px solid #8093a4;
+  border-right: 2px solid #8093a4;
+  border-radius: 4px;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.kmeans-covariance td {
+  padding: 0.12rem 0.6rem;
+  text-align: right;
+}
+
+.kmeans-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.kmeans-k-field {
+  max-width: 190px;
+}
+
+.kmeans-step-loop {
+  margin: 1.1rem 0;
+}
+
+.kmeans-steps {
+  display: grid;
+  gap: 0.55rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kmeans-step {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--text);
+  font-family: inherit;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kmeans-step.is-active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: white;
+}
+
+.kmeans-step.is-active:hover {
+  background: var(--brand-strong);
+}
+
+.kmeans-page .kmeans-step:disabled {
+  opacity: 1;
+  color: var(--muted);
+}
+
+.kmeans-initialize-button {
+  margin-top: 0.65rem;
+  align-items: center;
+}
+
+.kmeans-step-number {
+  flex: 0 0 1.8rem;
+  height: 1.8rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  background: #e5edf3;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.is-active .kmeans-step-number {
+  background: white;
+  color: var(--brand);
+}
+
+.kmeans-step-title {
+  display: block;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.kmeans-step-description {
+  display: block;
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.is-active .kmeans-step-description {
+  color: white;
+}
+
+.kmeans-loop-caption {
+  margin: 0.65rem 0 0;
+  text-align: center;
+  color: var(--brand-strong);
+  font-size: 0.78rem;
+}
+
+.kmeans-loop-caption span {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.kmeans-feedback.is-converged {
+  background: #e7f5ee;
+  color: #166044;
+}
+
+.kmeans-classification-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 0.65rem;
+}
+
+.kmeans-classification-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.kmeans-classification-actions .btn {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.35rem;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.kmeans-run-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.2rem 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.kmeans-run-stats dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.kmeans-run-stats dd {
+  margin: 0.15rem 0 0;
+  font: 700 1.5rem "Space Grotesk", sans-serif;
+}
+
+.kmeans-empty-group-note,
+.kmeans-field-error {
+  font-size: 0.82rem;
+  color: #944710;
+}
+
+.kmeans-explanation {
+  padding: 0.3rem 0.2rem;
+  max-width: 90ch;
+}
+
+.kmeans-explanation h2 {
+  margin: 0 0 0.4rem;
+  font: 700 1.05rem "Space Grotesk", sans-serif;
+}
+
+.kmeans-explanation p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.87rem;
+}
+
+@media (min-width: 980px) {
+  .section.kmeans-algorithm-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0.85rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-panel-heading {
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-panel-heading p {
+    display: none;
+  }
+
+  .kmeans-algorithm-panel .kmeans-panel-icon {
+    flex-basis: 1.85rem;
+    height: 1.85rem;
+    font-size: 1.4rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-k-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: none;
+  }
+
+  .kmeans-algorithm-panel .kmeans-k-field select {
+    width: 76px;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.9rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-step-loop {
+    margin: 1rem 0 0.65rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-initialize-button {
+    margin-top: 0.4rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-steps {
+    gap: 0.4rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-step,
+  .kmeans-algorithm-panel .kmeans-step.is-active {
+    gap: 0.55rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-step-number {
+    flex-basis: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.8rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-step-title {
+    font-size: 0.875rem;
+    line-height: 1.3;
+  }
+
+  .kmeans-algorithm-panel .kmeans-step-description {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    margin-top: 0.15rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-loop-caption {
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .kmeans-algorithm-panel .kmeans-run-stats {
+    grid-template-columns: 0.9fr 1.1fr;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    gap: 0.6rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-run-stats div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-run-stats dt {
+    font-size: 0.7rem;
+    line-height: 1.3;
+  }
+
+  .kmeans-algorithm-panel .kmeans-run-stats dd {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .kmeans-algorithm-panel .kmeans-feedback {
+    margin-top: 0.4rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 979px) {
+  .kmeans-header {
+    display: block;
+  }
+
+  .kmeans-header .lead {
+    margin-top: 0.4rem;
+  }
+
+  .kmeans-stage,
+  .kmeans-preparation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kmeans-stage {
+    height: auto;
+  }
+
+  .kmeans-plot-container {
+    flex: none;
+    height: clamp(320px, 52vw, 520px);
+  }
+
+  .kmeans-preparation {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .section.kmeans-plot-section {
+    padding: 0.8rem 0.45rem;
+  }
+
+  .section.kmeans-control-panel {
+    padding: 1rem;
+  }
+
+  .kmeans-generation-fields,
+  .kmeans-parameter-grid {
+    gap: 0.65rem;
+  }
+
+  .kmeans-parameter-label {
+    flex-wrap: wrap;
+  }
+}

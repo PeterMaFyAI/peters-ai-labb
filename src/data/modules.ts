@@ -55,13 +55,14 @@ export const visualizationModules: LearningModule[] = [
     title: "K-means",
     slug: "k-means",
     imageUrl: kMeansImage,
-    description: "Visualiseringen kommer snart.",
+    description:
+      "Skapa punktmoln och följ k-means steg för steg med tilldelning och flytt av medelpunkter.",
     category: "Klustring",
     targetGroup: "Gymnasiet / vuxenutbildning",
     route: "/visualiseringar/k-means",
     type: "visualization",
-    status: "planned",
-    keywords: ["klustring", "centroider", "gruppering", "distance"]
+    status: "ready",
+    keywords: ["klustring", "centroider", "gruppering", "avstånd", "kovarians", "k-means"]
   },
   {
     id: "avstand",
