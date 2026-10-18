@@ -10,658 +10,63 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import "./qLearning.css";
 
-type Action = "right" | "down" | "left" | "up";
-type TileItem = "none" | "apple" | "bird";
-type QRow = Record<Action, number>;
-type QTable = Record<string, QRow>;
+import {
+  ALL_ACTIONS, ACTION_LABELS, ACTION_SYMBOLS,
+  EDITOR_SIDE, MAX_WALKABLE_CELLS, MAX_APPLES, MAX_STEPS_PER_EPISODE,
+  DEFAULT_START, DEFAULT_GOAL, DEFAULT_WALKABLE, DEFAULT_ITEMS, Q_ENVIRONMENTS,
+  sortKeys, createZeroQTable, buildLabelMap, normalizeItems, deriveAppleKeys,
+  createAppleIndexByKey, normalizeAppleMask, buildCollectedApplesMap, keyFromXY,
+  getValidActions, shouldExpandAppleStates, encodeStateKey, formatStateLabel,
+  parseKey, hasPathToGoal, alignQTable, cloneQTable, performStep, clamp01,
+  pickAction, makeZeroRow, previewStep,
+  type Action, type TileItem, type QTable, type QStateDefinition,
+  type QCalculation, type StepOutcome
+} from "./qLearning";
 
-interface QStateDefinition {
-  key: string;
-  positionKey: string;
-  appleMask: number;
-  label: string;
-}
-
-interface QCalculation {
-  stateLabel: string;
-  nextStateLabel: string;
-  action: Action;
-  reward: number;
-  oldQ: number;
-  maxNextQ: number;
-  target: number;
-  newQ: number;
-  alpha: number;
-  gamma: number;
-}
-
-interface StepOutcome {
-  qTable: QTable;
-  agentKey: string;
-  agentAppleMask: number;
-  reward: number;
-  done: boolean;
-  episodeScore: number;
-  stepCount: number;
-  calculation: QCalculation;
+interface PendingStep {
+  stateKey: string;
   action: Action;
 }
-
-interface ScoreFlash {
-  id: number;
-  text: string;
-  positive: boolean;
-}
-
-interface Coordinate {
-  x: number;
-  y: number;
-}
-
-const ALL_ACTIONS: Action[] = ["right", "down", "left", "up"];
-const ACTION_LABELS: Record<Action, string> = {
-  right: "Höger",
-  down: "Ner",
-  left: "Vänster",
-  up: "Upp"
-};
-const ACTION_SYMBOLS: Record<Action, string> = {
-  right: "H",
-  down: "N",
-  left: "V",
-  up: "U"
-};
-const ACTION_DELTAS: Record<Action, Coordinate> = {
-  right: { x: 1, y: 0 },
-  down: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  up: { x: 0, y: -1 }
-};
-
-const EDITOR_SIDE = 4;
-const MAX_WALKABLE_CELLS = 16;
-const MAX_APPLES = 2;
-const MAX_STEPS_PER_EPISODE = 220;
-const OTHER_STATE_LABELS = [
-  "B",
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "I",
-  "J",
-  "K",
-  "L",
-  "M",
-  "N",
-  "O"
-];
-const DEFAULT_START = "0,0";
-const DEFAULT_GOAL = "2,1";
-const DEFAULT_WALKABLE = ["0,0", "1,0", "2,0", "0,1", "1,1", "2,1"];
-const DEFAULT_ITEMS: Record<string, TileItem> = {
-  "1,0": "apple",
-  "1,1": "bird"
-};
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
 
-function keyFromXY(x: number, y: number): string {
-  return `${x},${y}`;
-}
-
-function parseKey(key: string): Coordinate {
-  const [xRaw, yRaw] = key.split(",");
-  return {
-    x: Number.parseInt(xRaw, 10),
-    y: Number.parseInt(yRaw, 10)
-  };
-}
-
-function sortKeys(keys: string[]): string[] {
-  return [...keys].sort((left, right) => {
-    const leftCoord = parseKey(left);
-    const rightCoord = parseKey(right);
-    if (leftCoord.y === rightCoord.y) return leftCoord.x - rightCoord.x;
-    return leftCoord.y - rightCoord.y;
-  });
-}
-
-function makeZeroRow(): QRow {
-  return {
-    right: 0,
-    down: 0,
-    left: 0,
-    up: 0
-  };
-}
-
-function cloneQTable(qTable: QTable): QTable {
-  const next: QTable = {};
-  Object.entries(qTable).forEach(([stateKey, row]) => {
-    next[stateKey] = { ...row };
-  });
-  return next;
-}
-
-function createZeroQTable(stateKeys: string[]): QTable {
-  const table: QTable = {};
-  stateKeys.forEach((key) => {
-    table[key] = makeZeroRow();
-  });
-  return table;
-}
-
-function alignQTable(previous: QTable, stateKeys: string[]): QTable {
-  const next: QTable = {};
-  stateKeys.forEach((key) => {
-    const existing = previous[key];
-    next[key] = existing
-      ? {
-          right: existing.right ?? 0,
-          down: existing.down ?? 0,
-          left: existing.left ?? 0,
-          up: existing.up ?? 0
-        }
-      : makeZeroRow();
-  });
-  return next;
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function formatSigned(value: number): string {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
-}
-
 function renderMath(expression: string, displayMode = true): { __html: string } {
-  return {
-    __html: katex.renderToString(expression, {
-      throwOnError: false,
-      displayMode
-    })
-  };
+  return { __html: katex.renderToString(expression, { throwOnError: false, displayMode }) };
 }
 
-function nextStateFromAction(stateKey: string, action: Action): string {
-  const currentCoord = parseKey(stateKey);
-  const delta = ACTION_DELTAS[action];
-  return keyFromXY(currentCoord.x + delta.x, currentCoord.y + delta.y);
+function mathNumber(value: number): string {
+  // Remove binary arithmetic tails without hiding small nonzero values.
+  return Number(value.toPrecision(15)).toString()
+    .replace(/e([+-]?\d+)$/, String.raw` \cdot 10^{$1}`);
 }
 
-function getValidActions(
-  stateKey: string,
-  walkableSet: Set<string>,
-  enabledActions: Action[]
-): Action[] {
-  return enabledActions.filter((action) =>
-    walkableSet.has(nextStateFromAction(stateKey, action))
-  );
-}
-
-function maxQ(row: QRow | undefined, validActions: Action[]): number {
-  if (!row || validActions.length === 0) return 0;
-  return Math.max(...validActions.map((action) => row[action]));
-}
-
-function pickAction(row: QRow, epsilon: number, validActions: Action[]): Action | null {
-  if (validActions.length === 0) return null;
-
-  if (Math.random() < epsilon) {
-    return validActions[Math.floor(Math.random() * validActions.length)];
+function calculationFormula(calculation: QCalculation | null): string {
+  // A shared array gives each number the same column as its symbolic term.
+  const theory = [
+    "Q(s,a)", "=", "Q(s,a)", "+", String.raw`\alpha`, String.raw`\cdot`,
+    String.raw`\big(`, "r", "+", String.raw`\gamma`, String.raw`\cdot`,
+    String.raw`\max_{a'} Q(s',a')`, "-", "Q(s,a)", String.raw`\big)`, ""
+  ];
+  const rows = [theory.join(" & ")];
+  if (calculation) {
+    const oldQ = calculation.oldQ.toFixed(2);
+    const oldTerm = calculation.oldQ < 0 ? `(${oldQ})` : oldQ;
+    const nextQ = calculation.maxNextQ.toFixed(2);
+    const nextTerm = calculation.maxNextQ < 0 ? `(${nextQ})` : nextQ;
+    const rounded = Number(calculation.rawNewQ.toPrecision(15)) !== calculation.newQ;
+    const result = `${rounded ? String.raw`\approx` : "="} ${calculation.newQ.toFixed(2)}`;
+    const state = /^[A-Z]\d*$/.test(calculation.stateLabel)
+      ? calculation.stateLabel
+      : String.raw`\text{${calculation.stateLabel}}`;
+    rows.push([
+      String.raw`Q(${state},\mathrm{${ACTION_SYMBOLS[calculation.action]}})`,
+      "=", oldTerm, "+", mathNumber(calculation.alpha), String.raw`\cdot`,
+      String.raw`\big(`, mathNumber(calculation.reward), "+", mathNumber(calculation.gamma),
+      String.raw`\cdot`, nextTerm, "-", oldTerm, String.raw`\big)`, result
+    ].join(" & "));
   }
-
-  const bestValue = maxQ(row, validActions);
-  const bestActions = validActions.filter((action) => row[action] === bestValue);
-  return bestActions[Math.floor(Math.random() * bestActions.length)];
-}
-
-function buildLabelMap(
-  walkableKeys: string[],
-  startKey: string,
-  goalKey: string
-): Record<string, string> {
-  const map: Record<string, string> = {};
-  map[startKey] = "A";
-  map[goalKey] = "S";
-
-  const otherStates = sortKeys(
-    walkableKeys.filter((key) => key !== startKey && key !== goalKey)
-  );
-
-  otherStates.forEach((key, index) => {
-    map[key] = OTHER_STATE_LABELS[index] ?? `X${index + 1}`;
-  });
-
-  return map;
-}
-
-function normalizeItems(
-  items: Record<string, TileItem>,
-  walkableSet: Set<string>,
-  startKey: string,
-  goalKey: string,
-  labelMap: Record<string, string>
-): Record<string, TileItem> {
-  const next: Record<string, TileItem> = {};
-  const appleKeys: string[] = [];
-
-  Object.entries(items).forEach(([key, item]) => {
-    if (!walkableSet.has(key)) return;
-    if (key === startKey || key === goalKey) return;
-    if (item === "bird") {
-      next[key] = item;
-      return;
-    }
-    if (item === "apple") {
-      appleKeys.push(key);
-    }
-  });
-
-  const sortedAppleKeys = [...appleKeys]
-    .sort((left, right) => {
-      const leftLabel = labelMap[left] ?? left;
-      const rightLabel = labelMap[right] ?? right;
-      return leftLabel.localeCompare(rightLabel);
-    })
-    .slice(0, MAX_APPLES);
-
-  sortedAppleKeys.forEach((key) => {
-    next[key] = "apple";
-  });
-
-  return next;
-}
-
-function deriveAppleKeys(
-  cellItems: Record<string, TileItem>,
-  labelMap: Record<string, string>
-): string[] {
-  return Object.entries(cellItems)
-    .filter(([, item]) => item === "apple")
-    .map(([key]) => key)
-    .sort((left, right) => {
-      const leftLabel = labelMap[left] ?? left;
-      const rightLabel = labelMap[right] ?? right;
-      return leftLabel.localeCompare(rightLabel);
-    })
-    .slice(0, MAX_APPLES);
-}
-
-function createAppleIndexByKey(appleKeys: string[]): Record<string, number> {
-  const map: Record<string, number> = {};
-  appleKeys.forEach((key, index) => {
-    map[key] = index;
-  });
-  return map;
-}
-
-function encodeStateKey(positionKey: string, appleMask: number, expanded: boolean): string {
-  if (!expanded) return positionKey;
-  return `${positionKey}|${appleMask}`;
-}
-
-function normalizeAppleMask(
-  mask: number,
-  positionKey: string,
-  appleIndexByKey: Record<string, number>,
-  appleCount: number
-): number {
-  if (appleCount === 0) return 0;
-  const safeMask = mask & ((1 << appleCount) - 1);
-  const appleIndex = appleIndexByKey[positionKey];
-  if (appleIndex === undefined) return safeMask;
-  return safeMask | (1 << appleIndex);
-}
-
-function collectAppleInMask(
-  mask: number,
-  positionKey: string,
-  appleIndexByKey: Record<string, number>
-): number {
-  const appleIndex = appleIndexByKey[positionKey];
-  if (appleIndex === undefined) return mask;
-  return mask | (1 << appleIndex);
-}
-
-function buildCollectedApplesMap(
-  appleKeys: string[],
-  appleMask: number
-): Record<string, boolean> {
-  const collected: Record<string, boolean> = {};
-  appleKeys.forEach((key, index) => {
-    if ((appleMask & (1 << index)) !== 0) {
-      collected[key] = true;
-    }
-  });
-  return collected;
-}
-
-function formatStateLabel(
-  positionKey: string,
-  appleMask: number,
-  expanded: boolean,
-  appleKeys: string[],
-  labelMap: Record<string, string>
-): string {
-  const baseLabel = labelMap[positionKey] ?? "?";
-  if (!expanded || appleKeys.length === 0) return baseLabel;
-
-  const applesText = appleKeys
-    .map((_, index) => ((appleMask & (1 << index)) !== 0 ? "❌" : "🍎"))
-    .join(", ");
-  return `(${baseLabel},${applesText})`;
-}
-
-function buildGraphTransitions(
-  walkableKeys: string[],
-  walkableSet: Set<string>,
-  enabledActions: Action[],
-  terminalSet: Set<string>
-): Record<string, string[]> {
-  const edges: Record<string, string[]> = {};
-  walkableKeys.forEach((key) => {
-    if (terminalSet.has(key)) {
-      edges[key] = [];
-      return;
-    }
-    edges[key] = getValidActions(key, walkableSet, enabledActions).map((action) =>
-      nextStateFromAction(key, action)
-    );
-  });
-  return edges;
-}
-
-function getReachableNodes(startKey: string, edges: Record<string, string[]>): Set<string> {
-  const reachable = new Set<string>();
-  const queue: string[] = [startKey];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current || reachable.has(current)) continue;
-    reachable.add(current);
-    (edges[current] ?? []).forEach((next) => {
-      if (!reachable.has(next)) {
-        queue.push(next);
-      }
-    });
-  }
-
-  return reachable;
-}
-
-function computeSccSizeByNode(
-  nodes: string[],
-  edges: Record<string, string[]>
-): Record<string, number> {
-  const visited = new Set<string>();
-  const order: string[] = [];
-
-  const dfsForward = (node: string) => {
-    if (visited.has(node)) return;
-    visited.add(node);
-    (edges[node] ?? []).forEach((next) => {
-      if (!visited.has(next)) {
-        dfsForward(next);
-      }
-    });
-    order.push(node);
-  };
-
-  nodes.forEach((node) => {
-    if (!visited.has(node)) {
-      dfsForward(node);
-    }
-  });
-
-  const reverseEdges: Record<string, string[]> = {};
-  nodes.forEach((node) => {
-    reverseEdges[node] = [];
-  });
-  nodes.forEach((node) => {
-    (edges[node] ?? []).forEach((next) => {
-      if (reverseEdges[next]) {
-        reverseEdges[next].push(node);
-      }
-    });
-  });
-
-  const assigned = new Set<string>();
-  const sizeByNode: Record<string, number> = {};
-
-  const dfsReverse = (node: string, component: string[]) => {
-    if (assigned.has(node)) return;
-    assigned.add(node);
-    component.push(node);
-    (reverseEdges[node] ?? []).forEach((previous) => {
-      if (!assigned.has(previous)) {
-        dfsReverse(previous, component);
-      }
-    });
-  };
-
-  for (let index = order.length - 1; index >= 0; index -= 1) {
-    const node = order[index];
-    if (assigned.has(node)) continue;
-    const component: string[] = [];
-    dfsReverse(node, component);
-    const componentSize = component.length;
-    component.forEach((member) => {
-      sizeByNode[member] = componentSize;
-    });
-  }
-
-  return sizeByNode;
-}
-
-function shouldExpandAppleStates(params: {
-  walkableKeys: string[];
-  walkableSet: Set<string>;
-  enabledActions: Action[];
-  startKey: string;
-  goalKey: string;
-  appleKeys: string[];
-  cellItems: Record<string, TileItem>;
-}): boolean {
-  const {
-    walkableKeys,
-    walkableSet,
-    enabledActions,
-    startKey,
-    goalKey,
-    appleKeys,
-    cellItems
-  } = params;
-
-  if (appleKeys.length === 0 || enabledActions.length === 0) return false;
-  if (!walkableSet.has(startKey)) return false;
-
-  const birdKeys = Object.entries(cellItems)
-    .filter(([, item]) => item === "bird")
-    .map(([key]) => key);
-  const terminalSet = new Set<string>([goalKey, ...birdKeys]);
-  const edges = buildGraphTransitions(
-    walkableKeys,
-    walkableSet,
-    enabledActions,
-    terminalSet
-  );
-  const reachable = getReachableNodes(startKey, edges);
-  const reachableNodes = walkableKeys.filter((key) => reachable.has(key));
-  if (reachableNodes.length === 0) return false;
-
-  const reachableEdges: Record<string, string[]> = {};
-  reachableNodes.forEach((key) => {
-    reachableEdges[key] = (edges[key] ?? []).filter((next) => reachable.has(next));
-  });
-
-  const sccSizeByNode = computeSccSizeByNode(reachableNodes, reachableEdges);
-  return appleKeys.some((appleKey) => (sccSizeByNode[appleKey] ?? 1) > 1);
-}
-
-function performStep(params: {
-  qTable: QTable;
-  agentKey: string;
-  agentAppleMask: number;
-  episodeScore: number;
-  stepCount: number;
-  walkableSet: Set<string>;
-  goalKey: string;
-  cellItems: Record<string, TileItem>;
-  labelMap: Record<string, string>;
-  appleKeys: string[];
-  appleIndexByKey: Record<string, number>;
-  expandedStateSpace: boolean;
-  validActionsByState: Record<string, Action[]>;
-  alpha: number;
-  gamma: number;
-  epsilon: number;
-}): StepOutcome | null {
-  const {
-    qTable,
-    agentKey,
-    agentAppleMask,
-    episodeScore,
-    stepCount,
-    walkableSet,
-    goalKey,
-    cellItems,
-    labelMap,
-    appleKeys,
-    appleIndexByKey,
-    expandedStateSpace,
-    validActionsByState,
-    alpha,
-    gamma,
-    epsilon
-  } = params;
-
-  const appleCount = appleKeys.length;
-  const normalizedMask = normalizeAppleMask(
-    agentAppleMask,
-    agentKey,
-    appleIndexByKey,
-    appleCount
-  );
-  const currentStateKey = encodeStateKey(agentKey, normalizedMask, expandedStateSpace);
-  const row = qTable[currentStateKey] ?? makeZeroRow();
-  const validActions = validActionsByState[agentKey] ?? [];
-  const action = pickAction(row, epsilon, validActions);
-  if (!action) {
-    return null;
-  }
-
-  const nextKey = nextStateFromAction(agentKey, action);
-  if (!walkableSet.has(nextKey)) {
-    return null;
-  }
-
-  let nextMask = normalizedMask;
-  let reward = 0;
-  const tileItem = cellItems[nextKey] ?? "none";
-  const reachedGoal = nextKey === goalKey;
-  const hitBird = tileItem === "bird";
-
-  if (hitBird) {
-    reward = -2;
-  } else if (reachedGoal) {
-    reward = 2;
-  } else if (tileItem === "apple") {
-    const updatedMask = collectAppleInMask(nextMask, nextKey, appleIndexByKey);
-    if (updatedMask !== nextMask) {
-      reward += 1;
-    }
-    nextMask = updatedMask;
-  }
-
-  nextMask = normalizeAppleMask(nextMask, nextKey, appleIndexByKey, appleCount);
-
-  const terminal = reachedGoal || hitBird;
-
-  const oldQ = row[action];
-  const nextStateKey = encodeStateKey(nextKey, nextMask, expandedStateSpace);
-  const nextRow = terminal ? undefined : qTable[nextStateKey];
-  const nextValidActions = terminal ? [] : validActionsByState[nextKey] ?? [];
-  const maxNextQ = terminal ? 0 : maxQ(nextRow, nextValidActions);
-  const target = reward + gamma * maxNextQ;
-  const newQ = oldQ + alpha * (target - oldQ);
-
-  const nextQTable = cloneQTable(qTable);
-  if (!nextQTable[currentStateKey]) {
-    nextQTable[currentStateKey] = makeZeroRow();
-  }
-  nextQTable[currentStateKey][action] = newQ;
-
-  return {
-    qTable: nextQTable,
-    agentKey: nextKey,
-    agentAppleMask: nextMask,
-    reward,
-    done: terminal,
-    episodeScore: episodeScore + reward,
-    stepCount: stepCount + 1,
-    calculation: {
-      stateLabel: formatStateLabel(
-        agentKey,
-        normalizedMask,
-        expandedStateSpace,
-        appleKeys,
-        labelMap
-      ),
-      nextStateLabel: formatStateLabel(
-        nextKey,
-        nextMask,
-        expandedStateSpace,
-        appleKeys,
-        labelMap
-      ),
-      action,
-      reward,
-      oldQ,
-      maxNextQ,
-      target,
-      newQ,
-      alpha,
-      gamma
-    },
-    action
-  };
-}
-
-function hasPathToGoal(
-  walkableSet: Set<string>,
-  startKey: string,
-  goalKey: string,
-  enabledActions: Action[]
-): boolean {
-  if (!walkableSet.has(startKey) || !walkableSet.has(goalKey)) return false;
-  if (startKey === goalKey) return false;
-  if (enabledActions.length === 0) return false;
-
-  const queue: string[] = [startKey];
-  const visited = new Set<string>([startKey]);
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) continue;
-    if (current === goalKey) return true;
-
-    const currentCoord = parseKey(current);
-    enabledActions.forEach((action) => {
-      const delta = ACTION_DELTAS[action];
-      const next = keyFromXY(currentCoord.x + delta.x, currentCoord.y + delta.y);
-      if (!walkableSet.has(next) || visited.has(next)) return;
-      visited.add(next);
-      queue.push(next);
-    });
-  }
-
-  return false;
+  return String.raw`\def\arraystretch{1.65}\begin{darray}{${"c".repeat(theory.length)}}${rows.join(String.raw` \\ `)}\end{darray}`;
 }
 
 function cellVisualItem(
@@ -671,7 +76,8 @@ function cellVisualItem(
   cellItems: Record<string, TileItem>,
   collectedApples: Record<string, boolean>
 ): string {
-  if (key === startKey || key === goalKey) return "";
+  if (key === goalKey) return "🎯";
+  if (key === startKey) return "";
   const item = cellItems[key] ?? "none";
   if (item === "apple" && collectedApples[key]) return "";
   if (item === "apple") return "\u{1F34E}";
@@ -706,11 +112,13 @@ function QLearningPage(): JSX.Element {
   const [episodeScore, setEpisodeScore] = useState(0);
   const [stepCount, setStepCount] = useState(0);
   const [episodeIndex, setEpisodeIndex] = useState(1);
-  const [lastReward, setLastReward] = useState(0);
   const [statusText, setStatusText] = useState(
-    "Stega för att se hur Q-tabellen uppdateras."
+    "Miljön är redo.\nKlicka på Stega ett drag och räkna själv."
   );
   const [calculation, setCalculation] = useState<QCalculation | null>(null);
+  const [pendingStep, setPendingStep] = useState<PendingStep | null>(null);
+  const [hintShown, setHintShown] = useState(false);
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState(Q_ENVIRONMENTS[0].id);
 
   const [alpha, setAlpha] = useState(0.5);
   const [gamma, setGamma] = useState(0.9);
@@ -724,20 +132,10 @@ function QLearningPage(): JSX.Element {
   const [stopRequested, setStopRequested] = useState(false);
   const stopRequestedRef = useRef(false);
 
-  const [scoreFlashes, setScoreFlashes] = useState<ScoreFlash[]>([]);
   const [editMode, setEditMode] = useState(false);
-  const [enabledActions, setEnabledActions] = useState<Action[]>(["right", "down"]);
+  const [enabledActions, setEnabledActions] = useState<Action[]>(Q_ENVIRONMENTS[0].enabledActions);
   const [dragToken, setDragToken] = useState<"start" | "goal" | null>(null);
   const [editorInfo, setEditorInfo] = useState("");
-
-  const flashIdRef = useRef(0);
-  const flashTimeoutsRef = useRef<number[]>([]);
-  const clearRewardFlashTimers = useCallback(() => {
-    flashTimeoutsRef.current.forEach((timeoutId) => {
-      window.clearTimeout(timeoutId);
-    });
-    flashTimeoutsRef.current = [];
-  }, []);
 
   const walkableSet = useMemo(() => new Set(walkableKeys), [walkableKeys]);
   const normalizedItems = useMemo(
@@ -942,8 +340,6 @@ function QLearningPage(): JSX.Element {
     setAgentAppleMask(0);
   }, [editMode, startKey]);
 
-  useEffect(() => clearRewardFlashTimers, [clearRewardFlashTimers]);
-
   useEffect(() => {
     const handleMouseUp = () => {
       setDragToken(null);
@@ -952,48 +348,21 @@ function QLearningPage(): JSX.Element {
     return () => window.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
-  const pushRewardFlash = useCallback((reward: number) => {
-    const nextId = flashIdRef.current + 1;
-    flashIdRef.current = nextId;
-    const positive = reward >= 0;
-    const text = `${reward >= 0 ? "+" : ""}${reward.toFixed(1)} p`;
-
-    setScoreFlashes((previous) => [...previous, { id: nextId, text, positive }]);
-
-    const timeoutId = window.setTimeout(() => {
-      setScoreFlashes((previous) => previous.filter((flash) => flash.id !== nextId));
-      flashTimeoutsRef.current = flashTimeoutsRef.current.filter(
-        (id) => id !== timeoutId
-      );
-    }, 920);
-    flashTimeoutsRef.current.push(timeoutId);
-  }, []);
-
   const syncOutcomeToUi = useCallback(
-    (outcome: StepOutcome, currentEpisode: number, withFlash: boolean) => {
+    (outcome: StepOutcome, currentEpisode: number) => {
       setQTable(outcome.qTable);
       setAgentKey(outcome.agentKey);
       setAgentAppleMask(outcome.agentAppleMask);
       setEpisodeDone(outcome.done);
       setEpisodeScore(outcome.episodeScore);
       setStepCount(outcome.stepCount);
-      setLastReward(outcome.reward);
       setCalculation(outcome.calculation);
       setEpisodeIndex(currentEpisode);
       setStatusText(
-        `${outcome.calculation.stateLabel} --${
-          ACTION_LABELS[outcome.action]
-        }--> ${outcome.calculation.nextStateLabel}. Belöning ${formatSigned(
-          outcome.reward
-        )}.${
-          outcome.done ? " Episoden är klar." : ""
-        }`
+        `${outcome.calculation.stateLabel} → ${ACTION_LABELS[outcome.action]} → ${outcome.calculation.nextStateLabel}.`
       );
-      if (withFlash) {
-        pushRewardFlash(outcome.reward);
-      }
     },
-    [pushRewardFlash]
+    []
   );
 
   const resetEpisode = useCallback(
@@ -1003,8 +372,9 @@ function QLearningPage(): JSX.Element {
       setEpisodeDone(false);
       setEpisodeScore(0);
       setStepCount(0);
-      setLastReward(0);
       setCalculation(null);
+      setPendingStep(null);
+      setHintShown(false);
       if (typeof nextEpisodeIndex === "number") {
         setEpisodeIndex(nextEpisodeIndex);
       }
@@ -1018,8 +388,6 @@ function QLearningPage(): JSX.Element {
   const resetQForCurrentGrid = useCallback(
     (message: string) => {
       setQTable(createZeroQTable(qStateKeys));
-      clearRewardFlashTimers();
-      setScoreFlashes([]);
       setIsAutoRunning(false);
       setAutoMode(null);
       setStopRequested(false);
@@ -1029,51 +397,74 @@ function QLearningPage(): JSX.Element {
       setEpisodeDone(false);
       setEpisodeScore(0);
       setStepCount(0);
-      setLastReward(0);
       setCalculation(null);
+      setPendingStep(null);
+      setHintShown(false);
       setStatusText(message);
     },
-    [clearRewardFlashTimers, qStateKeys, startKey]
+    [qStateKeys, startKey]
   );
 
   const handleManualStep = () => {
-    if (isAutoRunning || editMode) return;
-
+    if (isAutoRunning || editMode || !canTrain) return;
     if (episodeDone) {
-      const nextIndex = episodeIndex + 1;
-      resetEpisode(nextIndex, `Ny episod ${nextIndex} startad.`);
+      resetEpisode(episodeIndex + 1, `Ny episod ${episodeIndex + 1} startad.`);
       return;
     }
-
+    if (!pendingStep) {
+      const action = pickAction(qTable[currentQStateKey] ?? makeZeroRow(), epsilon,
+        validActionsByState[agentKey] ?? []);
+      if (!action) {
+        setStatusText("Inga giltiga drag finns från aktuellt tillstånd.");
+        return;
+      }
+      setPendingStep({ stateKey: currentQStateKey, action });
+      setHintShown(false);
+      setCalculation(null);
+      setStatusText(`Masken kommer att gå ${ACTION_LABELS[action].toLowerCase()}.\nBeräkna det nya Q-värdet.`);
+      return;
+    }
+    // Complete the announced action without sampling another random move.
+    if (pendingStep.stateKey !== currentQStateKey) return;
     const outcome = performStep({
-      qTable,
-      agentKey,
-      agentAppleMask: normalizedAgentAppleMask,
-      episodeScore,
-      stepCount,
-      walkableSet,
-      goalKey,
-      cellItems: normalizedItems,
-      labelMap,
-      appleKeys,
-      appleIndexByKey,
-      expandedStateSpace,
-      validActionsByState,
-      alpha,
-      gamma,
-      epsilon
+      qTable, agentKey, agentAppleMask: normalizedAgentAppleMask,
+      episodeScore, stepCount, walkableSet, goalKey,
+      cellItems: normalizedItems, labelMap, appleKeys, appleIndexByKey,
+      expandedStateSpace, validActionsByState, alpha, gamma, epsilon,
+      action: pendingStep.action
     });
+    setPendingStep(null);
+    setHintShown(false);
+    if (outcome) syncOutcomeToUi(outcome, episodeIndex);
+  };
 
-    if (!outcome) {
-      setStatusText(
-        `Inga giltiga drag finns från ${
-          qStateLabelsByKey[currentQStateKey] ?? "aktuellt tillstånd"
-        }.`
-      );
-      return;
-    }
+  const handleEnvironmentChange = (id: string) => {
+    if (isAutoRunning) return;
+    const environment = Q_ENVIRONMENTS.find((item) => item.id === id);
+    if (!environment) return;
+    setSelectedEnvironmentId(id);
+    setWalkableKeys(sortKeys(environment.walkableKeys));
+    setStartKey(environment.startKey);
+    setGoalKey(environment.goalKey);
+    setCellItems({ ...environment.cellItems });
+    setEnabledActions([...environment.enabledActions]);
+    setQTable(createZeroQTable(environment.walkableKeys.filter(
+      (key) => key !== environment.goalKey && environment.cellItems[key] !== "bird"
+    )));
 
-    syncOutcomeToUi(outcome, episodeIndex, true);
+    setAgentKey(environment.startKey);
+    setAgentAppleMask(0);
+    setEpisodeIndex(1);
+    setEpisodeDone(false);
+    setEpisodeScore(0);
+    setStepCount(0);
+    setCalculation(null);
+    setPendingStep(null);
+    setHintShown(false);
+    setEditMode(false);
+    setDragToken(null);
+    setEditorInfo("");
+    setStatusText("Miljön är redo.\nKlicka på Stega ett drag och räkna själv.");
   };
 
   const handleResetQ = () => {
@@ -1082,7 +473,7 @@ function QLearningPage(): JSX.Element {
   };
 
   const runAnimatedTraining = useCallback(async () => {
-    if (isAutoRunning || editMode) return;
+    if (isAutoRunning || editMode || pendingStep) return;
 
     const episodeCount = Math.max(1, Math.floor(animatedEpisodes || 1));
     setIsAutoRunning(true);
@@ -1115,8 +506,9 @@ function QLearningPage(): JSX.Element {
       setEpisodeDone(false);
       setEpisodeScore(0);
       setStepCount(0);
-      setLastReward(0);
       setCalculation(null);
+      setPendingStep(null);
+      setHintShown(false);
 
       for (
         let stepIndex = 0;
@@ -1168,7 +560,7 @@ function QLearningPage(): JSX.Element {
         localStepCount = outcome.stepCount;
         done = outcome.done;
 
-        syncOutcomeToUi(outcome, activeEpisode, true);
+        syncOutcomeToUi(outcome, activeEpisode);
         await wait(animationDelay);
 
         if (done) {
@@ -1211,6 +603,7 @@ function QLearningPage(): JSX.Element {
     gamma,
     goalKey,
     isAutoRunning,
+    pendingStep,
     labelMap,
     normalizedItems,
     qTable,
@@ -1234,7 +627,7 @@ function QLearningPage(): JSX.Element {
   };
 
   const handleFastTraining = () => {
-    if (isAutoRunning || editMode) return;
+    if (isAutoRunning || editMode || pendingStep) return;
 
     const episodeCount = Math.max(1, Math.floor(fastEpisodes || 1));
     setIsAutoRunning(true);
@@ -1307,9 +700,10 @@ function QLearningPage(): JSX.Element {
   };
 
   const toggleEditMode = () => {
-    if (isAutoRunning) return;
+    if (isAutoRunning || pendingStep) return;
     if (!editMode) {
       setEditMode(true);
+      setSelectedEnvironmentId("custom");
       setEditorInfo(
         "Redigeringsläge aktivt i miljön (4x4). Vänsterklick: lägg till/ta bort ruta. Högerklick: neutral -> äpple -> fågel. Dra A/S för att flytta start/mål."
       );
@@ -1464,24 +858,23 @@ function QLearningPage(): JSX.Element {
     tableActions.length > 0
       ? tableActions.map((action) => ACTION_LABELS[action]).join(", ")
       : "inga actions valda";
+  const selectedEnvironment = Q_ENVIRONMENTS.find((item) => item.id === selectedEnvironmentId);
+  const pendingPreview = pendingStep ? previewStep({
+    agentKey, agentAppleMask: normalizedAgentAppleMask, action: pendingStep.action,
+    goalKey, cellItems: normalizedItems, labelMap, appleKeys,
+    appleIndexByKey, expandedStateSpace
+  }) : null;
 
   return (
     <div className="container page-flow q-learning-page">
       <section className="section">
         <h1 className="q-learning-title">Q-learning: masken och äppeljakten</h1>
         <p className="q-learning-lead">
-          Utforska förstärkningsinlärning steg för steg. Agenten ({"\u{1F41B}"}) lär sig
-          hitta till målet S med hjälp av belöningar, Q-tabell och epsilon-greedy.
+          Hjälp masken ({"\u{1F41B}"}) att lära sig hitta till målet S.
+          Räkna själv på papper, uppdatera din Q-tabell och jämför sedan med facit.
         </p>
 
         <div className="q-learning-toolbar">
-          <button
-            className={`q-btn ${editMode ? "q-btn-secondary" : "q-btn-primary"}`}
-            onClick={toggleEditMode}
-            disabled={isAutoRunning}
-          >
-            {editMode ? "Lämna redigeringsläge" : "Redigeringsläge (4x4)"}
-          </button>
           <button
             className="q-btn"
             onClick={handleResetQ}
@@ -1503,11 +896,26 @@ function QLearningPage(): JSX.Element {
               </p>
             </div>
 
+            <label className="q-environment-picker">
+              <span>Välj miljö</span>
+              <select value={selectedEnvironmentId} disabled={isAutoRunning}
+                onChange={(event) => handleEnvironmentChange(event.target.value)}>
+                {Q_ENVIRONMENTS.map((environment) => (
+                  <option key={environment.id} value={environment.id}>{environment.name}</option>
+                ))}
+                {selectedEnvironmentId === "custom" && <option value="custom">Egen miljö</option>}
+              </select>
+            </label>
+            <p className="q-environment-description">
+              {selectedEnvironment?.description ?? "Din egen miljö. Giltiga riktningar väljs i redigeringsläget."}
+              {" "}Vid miljöbyte nollställs träningen.
+            </p>
+
             <div className="q-training-wrap">
               <div
                 className="q-training-grid"
                 style={{
-                  gridTemplateColumns: `repeat(${trainingColumns}, minmax(74px, 1fr))`
+                  gridTemplateColumns: `repeat(${trainingColumns}, var(--q-cell-size))`
                 }}
               >
                 {trainingCells.map((key) => {
@@ -1523,15 +931,19 @@ function QLearningPage(): JSX.Element {
                     normalizedItems,
                     collectedApples
                   );
+                  const cellReward = isGoal ? 2 : visualItem === "🐦" ? -2 : visualItem === "🍎" ? 1 : null;
 
                   return (
                     <div
                       key={`training-${key}`}
+                      aria-label={isWalkable ? `Ruta ${label}${isStart ? ", start" : ""}${isGoal ? ", mål" : ""}${normalizedItems[key] === "bird" ? ", fågel" : ""}${visualItem === "🍎" ? ", äpple" : ""}${cellReward !== null ? `, belöning ${cellReward > 0 ? "+" : ""}${cellReward}` : ""}${isAgent ? ", masken" : ""}` : "Blockerad ruta"}
                       className={`q-cell ${
                         isWalkable ? "q-cell-walkable" : "q-cell-blocked"
                       } ${isStart ? "q-cell-start" : ""} ${
                         isGoal ? "q-cell-goal" : ""
                       } ${isAgent ? "q-cell-agent" : ""} ${
+                        cellReward !== null ? "q-cell-has-reward" : ""
+                      } ${
                         editMode ? "q-cell-editable" : ""
                       } ${dragToken ? "q-cell-drag-active" : ""}`}
                       onMouseDown={(event) => handleEditorMouseDown(event, key)}
@@ -1546,6 +958,11 @@ function QLearningPage(): JSX.Element {
                               {visualItem}
                             </span>
                           ) : null}
+                          {cellReward !== null && (
+                            <span className={`q-cell-reward ${cellReward > 0 ? "positive" : "negative"}`} aria-hidden="true">
+                              {cellReward > 0 ? "+" : "−"}{Math.abs(cellReward)}
+                            </span>
+                          )}
                           {isAgent ? (
                             <span className="q-cell-agent-icon" aria-hidden="true">
                               {"\u{1F41B}"}
@@ -1558,19 +975,9 @@ function QLearningPage(): JSX.Element {
                 })}
               </div>
 
-              <div className="q-score-flashes" aria-live="polite">
-                {scoreFlashes.map((flash) => (
-                  <span
-                    key={flash.id}
-                    className={`q-score-flash ${
-                      flash.positive ? "positive" : "negative"
-                    }`}
-                  >
-                    {flash.text}
-                  </span>
-                ))}
-              </div>
             </div>
+
+            <p className="q-environment-description">Mål och fågel avslutar episoden.</p>
 
             {editMode ? (
               <div className="q-edit-panel">
@@ -1600,22 +1007,29 @@ function QLearningPage(): JSX.Element {
               </div>
             ) : null}
 
-            <div className="q-status-line">
-              <span
-                className={`q-reward-chip ${
-                  lastReward >= 0 ? "positive" : "negative"
-                }`}
-              >
-                Senaste belöning: {formatSigned(lastReward)}
-              </span>
-              <span
-                className={`q-episode-chip ${episodeDone ? "done" : "running"}`}
-              >
-                {episodeDone ? "Episod avslutad" : "Episod aktiv"}
-              </span>
+            <div className="q-step-panel">
+              <h3 className="q-step-heading">Räkna ett steg i taget</h3>
+              <p className="q-step-prompt" aria-live="polite">{statusText}</p>
+              <div className="q-step-actions">
+                <button className="q-btn q-btn-primary" onClick={handleManualStep}
+                  disabled={isAutoRunning || !canTrain || editMode}>
+                  {episodeDone ? "Ny episod" : pendingStep ? "Fullfölj steget" : "Stega ett drag"}
+                </button>
+                {pendingStep && <button className="q-btn" onClick={() => setHintShown(!hintShown)}
+                  aria-expanded={hintShown} aria-controls="q-step-hint">
+                  {hintShown ? "Dölj ledtråd" : "Visa ledtråd"}
+                </button>}
+              </div>
+              {hintShown && pendingStep && pendingPreview && (
+                <p className="q-hint" id="q-step-hint">
+                  Läs det gamla värdet på rad <strong>{qStateLabelsByKey[pendingStep.stateKey]}</strong>,
+                  kolumn <strong>{ACTION_LABELS[pendingStep.action]}</strong>.
+                  {pendingPreview.terminal
+                    ? " Draget går till mål eller fågel och avslutar episoden. Framtidsvärdet är därför 0; någon nästa tabellrad behövs inte."
+                    : <> Leta sedan efter det största giltiga Q-värdet på rad <strong>{pendingPreview.nextStateLabel}</strong>. Rutor med X ingår inte i maxvärdet.</>}
+                </p>
+              )}
             </div>
-
-            <p className="q-status-text">{statusText}</p>
 
             {!canTrain ? (
               <p className="q-warning">
@@ -1624,6 +1038,53 @@ function QLearningPage(): JSX.Element {
                   : "Start och mål är inte sammankopplade med gångbara rutor utifrån valda actions."}
               </p>
             ) : null}
+            <div className="q-parameters">
+              <h3>Parametrar</h3>
+              <div className="q-param-grid">
+                <label className="q-field">
+                  <span>α (alfa)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={alpha}
+                    onChange={(event) =>
+                      setAlpha(clamp01(Number.parseFloat(event.target.value) || 0))
+                    }
+                    disabled={isAutoRunning || !!pendingStep}
+                  />
+                </label>
+                <label className="q-field">
+                  <span>γ (gamma)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={gamma}
+                    onChange={(event) =>
+                      setGamma(clamp01(Number.parseFloat(event.target.value) || 0))
+                    }
+                    disabled={isAutoRunning || !!pendingStep}
+                  />
+                </label>
+                <label className="q-field">
+                  <span>ε (epsilon)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={epsilon}
+                    onChange={(event) =>
+                      setEpsilon(clamp01(Number.parseFloat(event.target.value) || 0))
+                    }
+                    disabled={isAutoRunning || !!pendingStep}
+                  />
+                </label>
+              </div>
+            </div>
           </article>
 
           <article className="q-card">
@@ -1651,14 +1112,17 @@ function QLearningPage(): JSX.Element {
                       {tableActions.map((action) => {
                         const isValidAction =
                           validActionsByQState[stateKey]?.includes(action) ?? false;
+                        const isUpdated = isValidAction && calculation?.stateKey === stateKey && calculation.action === action;
                         return (
                           <td
                             key={`${stateKey}-${action}`}
-                            className={isValidAction ? "" : "q-table-invalid"}
+                            className={!isValidAction ? "q-table-invalid" : isUpdated ? "q-table-updated" : ""}
+                            aria-label={isUpdated ? `Senast uppdaterat: ${calculation.newQ.toFixed(2)}, tidigare ${calculation.oldQ.toFixed(2)}` : undefined}
                           >
-                            {isValidAction
-                              ? (qTable[stateKey]?.[action] ?? 0).toFixed(2)
-                              : "X"}
+                            {isValidAction ? <span className="q-cell-values">
+                              <span>{(qTable[stateKey]?.[action] ?? 0).toFixed(2)}</span>
+                              {isUpdated && <s className="q-old-value" aria-hidden="true">{calculation.oldQ.toFixed(2)}</s>}
+                            </span> : "X"}
                           </td>
                         );
                       })}
@@ -1667,106 +1131,31 @@ function QLearningPage(): JSX.Element {
                 </tbody>
               </table>
             </div>
+            <p className="q-rounding-note">Varje nytt Q-värde avrundas till två decimaler. Använd det avrundade värdet i nästa beräkning. X betyder att draget inte är giltigt.</p>
 
             <div className="q-calc-box">
-              <h3>Aktuell beräkning</h3>
+              <h3>Q-formeln och facit</h3>
               <div
-                className="q-calc-formula q-calc-theory"
-                dangerouslySetInnerHTML={renderMath(
-                  String.raw`Q(s, a) = Q(s, a) + \alpha \cdot \left(r + \gamma \cdot \max_{a'} Q(s', a') - Q(s, a)\right)`
-                )}
+                className="q-calc-formula"
+                dangerouslySetInnerHTML={renderMath(calculationFormula(calculation))}
               />
-              {calculation ? (
-                <>
-                  <div
-                    className="q-calc-formula"
-                    dangerouslySetInnerHTML={renderMath(
-                      String.raw`Q(${calculation.stateLabel}, \mathrm{${
-                        ACTION_SYMBOLS[calculation.action]
-                      }}) = ${calculation.oldQ.toFixed(2)} + ${calculation.alpha.toFixed(
-                        2
-                      )} \cdot \left(${calculation.reward.toFixed(
-                        2
-                      )} + ${calculation.gamma.toFixed(
-                        2
-                      )} \cdot ${calculation.maxNextQ.toFixed(
-                        2
-                      )} - ${calculation.oldQ.toFixed(2)}\right) = ${calculation.newQ.toFixed(
-                        2
-                      )}`
-                    )}
-                  />
-                </>
-              ) : (
-                <p>Ingen uppdatering än. Klicka på "Stega ett drag".</p>
-              )}
             </div>
           </article>
         </div>
       </section>
 
       <section className="section">
-        <div className="q-controls-grid">
-          <article className="q-controls-card">
-            <h2>Stegvis träning</h2>
-            <div className="q-btn-row">
-              <button
-                className="q-btn q-btn-primary"
-                onClick={handleManualStep}
-                disabled={isAutoRunning || !canTrain || editMode}
-              >
-                {episodeDone ? "Ny episod" : "Stega ett drag"}
+        <details className="q-advanced">
+          <summary>Fler möjligheter</summary>
+          <div className="q-controls-grid">
+            <article className="q-controls-card">
+              <h2>Egen miljö</h2>
+              <p>Ändra rutorna, flytta start och mål eller välj andra riktningar.</p>
+              <button className={`q-btn ${editMode ? "q-btn-secondary" : ""}`}
+                onClick={toggleEditMode} disabled={isAutoRunning || !!pendingStep}>
+                {editMode ? "Lämna redigeringsläge" : "Redigeringsläge (4×4)"}
               </button>
-            </div>
-          </article>
-
-          <article className="q-controls-card">
-            <h2>Parametrar</h2>
-            <div className="q-param-grid">
-              <label className="q-field">
-                <span>alpha</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={alpha}
-                  onChange={(event) =>
-                    setAlpha(clamp01(Number.parseFloat(event.target.value) || 0))
-                  }
-                  disabled={isAutoRunning}
-                />
-              </label>
-              <label className="q-field">
-                <span>gamma</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={gamma}
-                  onChange={(event) =>
-                    setGamma(clamp01(Number.parseFloat(event.target.value) || 0))
-                  }
-                  disabled={isAutoRunning}
-                />
-              </label>
-              <label className="q-field">
-                <span>epsilon</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={epsilon}
-                  onChange={(event) =>
-                    setEpsilon(clamp01(Number.parseFloat(event.target.value) || 0))
-                  }
-                  disabled={isAutoRunning}
-                />
-              </label>
-            </div>
-          </article>
+            </article>
 
           <article className="q-controls-card">
             <h2>Automatisk träning (med animation)</h2>
@@ -1778,7 +1167,7 @@ function QLearningPage(): JSX.Element {
                   onChange={(event) =>
                     setAnimationDelay(Number.parseInt(event.target.value, 10))
                   }
-                  disabled={isAutoRunning}
+                  disabled={isAutoRunning || !!pendingStep}
                 >
                   <option value={700}>Lugn</option>
                   <option value={420}>Normal</option>
@@ -1798,7 +1187,7 @@ function QLearningPage(): JSX.Element {
                       Math.max(1, Number.parseInt(event.target.value, 10) || 1)
                     )
                   }
-                  disabled={isAutoRunning}
+                  disabled={isAutoRunning || !!pendingStep}
                 />
               </label>
             </div>
@@ -1806,7 +1195,7 @@ function QLearningPage(): JSX.Element {
               <button
                 className="q-btn q-btn-primary"
                 onClick={handleAnimatedButton}
-                disabled={!canTrain || (isAutoRunning && autoMode !== "animated")}
+                disabled={!canTrain || editMode || !!pendingStep || (isAutoRunning && autoMode !== "animated")}
               >
                 {isAutoRunning && autoMode === "animated"
                   ? stopRequested
@@ -1832,7 +1221,7 @@ function QLearningPage(): JSX.Element {
                       Math.max(1, Number.parseInt(event.target.value, 10) || 1)
                     )
                   }
-                  disabled={isAutoRunning}
+                  disabled={isAutoRunning || !!pendingStep}
                 />
               </label>
             </div>
@@ -1840,13 +1229,14 @@ function QLearningPage(): JSX.Element {
               <button
                 className="q-btn q-btn-primary"
                 onClick={handleFastTraining}
-                disabled={isAutoRunning || !canTrain || editMode}
+                disabled={isAutoRunning || !canTrain || editMode || !!pendingStep}
               >
                 Kör snabbträning
               </button>
             </div>
           </article>
-        </div>
+          </div>
+        </details>
       </section>
 
     </div>

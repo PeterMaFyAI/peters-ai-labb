@@ -99,7 +99,7 @@ export const visualizationModules: LearningModule[] = [
     slug: "q-learning",
     imageUrl: qLearningImage,
     description:
-      "Träna en agent med Q-tabell, stegvis uppdatering, autokörning och redigerbart rutnät.",
+      "Räkna Q-värden för hand i fem enkla miljöer och följ Q-tabellen steg för steg.",
     category: "Förstärkningsinlärning",
     targetGroup: "Gymnasiet / vuxenutbildning",
     route: "/visualiseringar/q-learning",
