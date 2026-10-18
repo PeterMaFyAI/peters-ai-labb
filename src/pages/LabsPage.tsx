@@ -1,13 +1,21 @@
+import ResourceCard from "../components/common/ResourceCard";
+import SectionHeader from "../components/common/SectionHeader";
+import { labModules } from "../data/modules";
+
 function LabsPage(): JSX.Element {
   return (
     <div className="container page-flow">
-      <section className="labs-placeholder">
-        <p className="section-eyebrow">Interaktiva laborationer</p>
-        <h1>Laborationer kommer snart</h1>
-        <p>
-          Den här delen av portalen är förberedd i navigation och routing, men innehållet
-          publiceras i nästa steg.
-        </p>
+      <section className="section">
+        <SectionHeader
+          eyebrow="Interaktiva laborationer"
+          title="Experimentera, träna och upptäck"
+          text="Undersök hur AI lär sig genom egna experiment. Spela, ändra inställningar och följ vad som händer steg för steg."
+        />
+        <div className="resource-grid">
+          {labModules.map((module) => (
+            <ResourceCard key={module.id} module={module} />
+          ))}
+        </div>
       </section>
     </div>
   );

@@ -6,6 +6,7 @@ import kMeansImage from "../assets/module-images/k-means.png";
 import avstandImage from "../assets/module-images/avstand.png";
 import normaliseringImage from "../assets/module-images/normalisering.png";
 import qLearningImage from "../assets/module-images/q-learning.png";
+import nimImage from "../assets/module-images/nim.svg";
 
 export const visualizationModules: LearningModule[] = [
   {
@@ -108,25 +109,24 @@ export const visualizationModules: LearningModule[] = [
   }
 ];
 
-export const labModules: LearningModule[] = [];
-
-export const plannedLabModules: LearningModule[] = [
+export const labModules: LearningModule[] = [
   {
-    id: "future-lab-1",
-    title: "Kommande laboration",
-    slug: "kommande-laboration",
+    id: "nim",
+    title: "Nim – träna en AI",
+    slug: "nim",
+    imageUrl: nimImage,
     description:
-      "Strukturen är förberedd för interaktiva laborationer som publiceras i nästa steg.",
-    category: "Laboration",
+      "Spela Nim med 12 pinnar, träna en AI med Q-learning och följ hur dess Q-tabell utvecklas.",
+    category: "Förstärkningsinlärning",
     targetGroup: "Gymnasiet / vuxenutbildning",
-    route: "/laborationer",
+    route: "/laborationer/nim",
     type: "lab",
-    status: "planned",
-    keywords: ["övning", "experiment", "interaktiv"]
+    status: "ready",
+    keywords: ["nim", "q-learning", "q-tabell", "strategi", "belöning", "träning"]
   }
 ];
 
 export const featuredResources: LearningModule[] = [
   ...visualizationModules,
-  plannedLabModules[0]
+  ...labModules
 ];

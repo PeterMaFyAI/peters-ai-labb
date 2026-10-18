@@ -1,0 +1,1043 @@
+.nim-page {
+  --nim-red: #cc4c54;
+  --nim-gold: #bc8b19;
+  --nim-blue: #2683ce;
+  gap: 1.45rem;
+}
+
+.nim-sr-only {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.nim-page button,
+.nim-page input,
+.nim-page select {
+  font-family: inherit;
+}
+
+.nim-page button {
+  cursor: pointer;
+}
+
+.nim-page :is(button, input, select, a):focus-visible {
+  outline: 3px solid #73bde0;
+  outline-offset: 3px;
+}
+
+.nim-page button:disabled,
+.nim-page input:disabled,
+.nim-page select:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.nim-page button:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.nim-intro {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.35rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(125deg, #fff 28%, #eaf5fc 100%);
+  box-shadow: var(--shadow);
+}
+
+.nim-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1.05rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nim-back:hover {
+  color: var(--brand);
+}
+
+.nim-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  margin: 0 0 0.65rem;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid #bddce9;
+  border-radius: 999px;
+  color: var(--brand-strong);
+  background: #e7f3fa;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.nim-title {
+  margin: 0;
+  color: #15384f;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(2rem, 4.5vw, 3.1rem);
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+}
+
+.nim-lead {
+  max-width: 73ch;
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.97rem;
+  line-height: 1.7;
+}
+
+.nim-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.15rem;
+}
+
+.nim-toolbar .btn {
+  padding: 0.5rem 0.85rem;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 0.82rem;
+}
+
+.nim-toolbar .btn[aria-expanded="true"] {
+  border-color: #82b4cd;
+  background: #e0f0fa;
+}
+
+.nim-toolbar .nim-back {
+  align-self: center;
+  margin: 0 0 0 0.25rem;
+  font-size: 0.76rem;
+}
+
+.nim-explanation {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #c9dfed;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.nim-explanation h2,
+.nim-explanation h3 {
+  margin: 0 0 0.45rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1.04rem;
+}
+
+.nim-explanation p {
+  margin: 0.4rem 0;
+}
+
+.nim-explanation :is(ul, ol) {
+  margin: 0.4rem 0;
+  padding-left: 1.3rem;
+}
+
+.nim-strategy-track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.85rem 0;
+  color: var(--muted);
+}
+
+.nim-strategy-track b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #e4cb88;
+  border-radius: 9px;
+  color: #725307;
+  background: #fff7df;
+}
+
+.nim-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: 1.2rem;
+}
+
+.nim-left {
+  display: grid;
+  min-width: 0;
+  gap: 1.2rem;
+}
+
+.nim-card {
+  min-width: 0;
+  padding: clamp(1.05rem, 1.7vw, 1.4rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(9, 45, 67, 0.055);
+}
+
+.nim-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 1.15rem;
+}
+
+.nim-card-heading h2 {
+  margin: 0 0 0.2rem;
+  color: #173c54;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1.28rem;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.nim-card-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.nim-step {
+  display: inline-flex;
+  flex: 0 0 1.85rem;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid #c8e1ef;
+  border-radius: 50%;
+  color: var(--brand);
+  background: #eef7fc;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.nim-board {
+  overflow: hidden;
+  padding: 1.05rem 1.1rem 0.8rem;
+  border: 1px solid #d1e6f1;
+  border-radius: 13px;
+  background:
+    radial-gradient(ellipse at 50% 90%, rgba(84, 171, 195, 0.12), transparent 65%),
+    linear-gradient(145deg, #f0f8fc, #e5f2f9);
+}
+
+.nim-board-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: #507183;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.nim-board-label strong {
+  color: #1b526d;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1.85rem;
+  line-height: 1;
+}
+
+.nim-board-label strong small {
+  color: #7795a6;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.nim-sticks {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(0.35rem, 0.95vw, 0.65rem);
+  min-height: 153px;
+  padding: 1.8rem 0 1.3rem;
+}
+
+.nim-stick {
+  display: block;
+  position: relative;
+  flex: 0 1 14px;
+  width: 14px;
+  height: 100px;
+  border: 1px solid #a67b47;
+  border-radius: 7px 7px 4px 4px;
+  background: linear-gradient(90deg, #b4854e 0%, #e6c08d 30%, #f2d6a9 52%, #ca9d63 100%);
+  box-shadow: 2px 5px 5px rgba(42, 73, 77, 0.12);
+  transition: opacity 250ms ease, transform 250ms ease, box-shadow 250ms ease;
+}
+
+.nim-stick::before {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: 25px;
+  border: 1px solid #15707c;
+  border-radius: 7px 7px 5px 5px;
+  background: linear-gradient(90deg, #237887, #47a2ab 48%, #237e8a);
+  content: "";
+}
+
+.nim-stick.is-gone {
+  transform: translateY(4px);
+  opacity: 0.12;
+  box-shadow: none;
+}
+
+.nim-board-footer {
+  margin: 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid #cbdee9;
+  color: #527082;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.nim-turn {
+  margin: 0.95rem 0;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid #cbdfe9;
+  border-left: 3px solid var(--brand);
+  border-radius: 9px;
+  color: #234d64;
+  background: #f4f9fd;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.nim-turn p {
+  margin: 0;
+}
+
+.nim-starter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.nim-starter legend {
+  margin-bottom: 0.45rem;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.nim-starter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.nim-starter label:has(input:checked) {
+  border-color: #78b1d1;
+  color: var(--brand-strong);
+  background: #edf7fd;
+}
+
+.nim-starter input,
+.nim-check input {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+.nim-move-buttons {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.nim-move-buttons .btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.3rem;
+  font-size: 0.85rem;
+}
+
+.nim-game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.nim-game-actions .btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.77rem;
+}
+
+.nim-history {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #e3edf5;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.nim-history h3,
+.nim-history summary {
+  margin: 0 0 0.45rem;
+  color: #35566d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.nim-history ol {
+  display: grid;
+  gap: 0.28rem;
+  max-height: 150px;
+  overflow-y: auto;
+  margin: 0;
+  padding-left: 1.3rem;
+}
+
+.nim-history li::marker {
+  color: #91aabc;
+}
+
+ol.nim-history {
+  display: grid;
+  gap: 0.28rem;
+  margin-bottom: 0;
+  padding-left: 1.3rem;
+}
+
+.nim-muted {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.nim-field {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  min-width: 0;
+  color: #39576d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.nim-field input[type="number"],
+.nim-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #cbdde9;
+  border-radius: 8px;
+  color: #213c50;
+  background: #fbfdff;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.nim-field select {
+  min-height: 2.5rem;
+}
+
+.nim-field input[aria-invalid="true"] {
+  border-color: #c87575;
+  background: #fff8f8;
+}
+
+.nim-validation {
+  margin: 0.4rem 0 0;
+  color: #a84047;
+  font-size: 0.73rem;
+}
+
+.nim-field :is(input, select):focus {
+  border-color: var(--brand);
+}
+
+.nim-training-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem 1.1rem;
+}
+
+.nim-training-options .nim-field {
+  flex: 0 1 145px;
+}
+
+.nim-training-options > .nim-check {
+  flex: 1 1 170px;
+  align-self: flex-end;
+  min-height: 2.6rem;
+}
+
+.nim-parameters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid #e3edf5;
+  border-bottom: 1px solid #e3edf5;
+}
+
+.nim-parameters .nim-field > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+}
+
+.nim-parameters output {
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.nim-parameters input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  margin: 0.5rem 0;
+  accent-color: var(--brand);
+}
+
+.nim-parameters small {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.nim-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #3d586c;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.nim-check:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+.nim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.nim-actions .btn {
+  flex: 1 1 auto;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.79rem;
+}
+
+.nim-training-progress {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  color: #47677d;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nim-training-progress progress {
+  overflow: hidden;
+  width: 100%;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: #e7f0f7;
+  accent-color: var(--brand);
+}
+
+.nim-training-progress progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #e7f0f7;
+}
+
+.nim-training-progress progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), #39a3bc);
+}
+
+.nim-training-progress progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--brand);
+}
+
+.nim-statistics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.nim-statistics > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.7rem 0.6rem;
+  border: 1px solid #dce9f2;
+  border-radius: 10px;
+  background: #f6fafd;
+}
+
+.nim-statistics span {
+  color: var(--muted);
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+.nim-statistics strong {
+  color: #16465f;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.nim-statistics small {
+  color: #5d778a;
+  font-size: 0.6rem;
+  line-height: 1.4;
+}
+
+.nim-training-note {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  font-size: 0.71rem;
+  line-height: 1.65;
+}
+
+.nim-card-heading + .nim-training-note {
+  margin: -0.2rem 0 0.95rem;
+}
+
+.nim-table-options {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border: 1px solid #deebf3;
+  border-radius: 10px;
+  background: #f8fbfe;
+}
+
+.nim-table-options .nim-check {
+  gap: 0.45rem;
+  font-size: 0.72rem;
+}
+
+.nim-legend-mark {
+  display: inline-block;
+  flex: 0 0 13px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+}
+
+.nim-legend-mark.red,
+.nim-cell-ring.red {
+  color: var(--nim-red);
+  border-color: var(--nim-red);
+}
+
+.nim-legend-mark.gold,
+.nim-cell-ring.gold {
+  color: var(--nim-gold);
+  border-color: var(--nim-gold);
+}
+
+.nim-legend-mark.blue,
+.nim-cell-ring.blue {
+  color: var(--nim-blue);
+  border-color: var(--nim-blue);
+}
+
+.nim-table-scroll {
+  overflow-x: auto;
+  border: 1px solid #d8e5ef;
+  border-radius: 10px;
+}
+
+.nim-q-table {
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nim-q-table th,
+.nim-q-table td {
+  padding: 0;
+  border-bottom: 1px solid #e2ecf4;
+  text-align: center;
+}
+
+.nim-q-table thead th {
+  height: 39px;
+  padding: 0.45rem 0.3rem;
+  color: #45667c;
+  background: #edf5fb;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.nim-q-table th:first-child {
+  width: 34%;
+  padding-left: 0.7rem;
+  text-align: left;
+}
+
+.nim-q-table tbody th {
+  color: #4f687a;
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.nim-q-table tbody tr:nth-child(even) {
+  background: #fafcfe;
+}
+
+.nim-q-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.nim-q-table .nim-state-active {
+  background: #e7f4fc !important;
+}
+
+.nim-q-table .nim-state-active th {
+  color: #0a5f8e;
+  font-weight: 700;
+  box-shadow: inset 3px 0 var(--brand);
+}
+
+.nim-q-value {
+  display: grid;
+  position: relative;
+  place-items: center;
+  min-height: 35px;
+  margin: 3px;
+  padding: 5px 2px;
+  border-radius: 7px;
+  color: #526b7c;
+  font-size: 0.74rem;
+}
+
+.nim-q-number {
+  position: relative;
+  z-index: 1;
+  line-height: 1.2;
+}
+
+.nim-q-positive {
+  color: #17654f;
+}
+
+.nim-q-negative {
+  color: #a24c4f;
+}
+
+.nim-cell-ring {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border: 2px solid;
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+.nim-cell-ring[data-slot="1"] {
+  inset: 4px;
+  border-radius: 5px;
+}
+
+.nim-cell-ring[data-slot="2"] {
+  inset: 8px;
+  border-radius: 3px;
+}
+
+.nim-invalid {
+  color: #b1bfcb;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(207, 222, 232, 0.16) 6px 7px);
+  font-size: 0.8rem;
+}
+
+.nim-table-note {
+  margin: 0.65rem 0 0;
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1.6;
+}
+
+.nim-calculation {
+  min-width: 0;
+  margin-top: 1rem;
+  padding: 0.95rem;
+  border: 1px solid #cee1ee;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #f1f8fd, #f8fbfe);
+}
+
+.nim-calculation h3 {
+  margin: 0 0 0.6rem;
+  color: #234d65;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 1rem;
+}
+
+.nim-calculation > p {
+  margin: 0.55rem 0 0;
+  color: #557082;
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.nim-formula {
+  overflow-x: auto;
+  max-width: 100%;
+  padding: 0.45rem 0;
+  color: #234d65;
+  font-size: 0.79rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nim-formula .katex {
+  font-size: 1.02em;
+}
+
+.nim-formula .katex-display {
+  margin: 0.25rem 0;
+  text-align: left;
+}
+
+.nim-formula .katex-display > .katex {
+  text-align: left;
+}
+
+.nim-calculation-details {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  color: #45667c;
+  font-size: 0.73rem;
+  line-height: 1.65;
+}
+
+.nim-calculation-details p {
+  margin: 0;
+}
+
+.nim-reward-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: fit-content;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid #b8dccd;
+  border-radius: 999px;
+  color: #22654f;
+  background: #eaf6f0;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.nim-experiments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.nim-reward-pill[data-reward="-1"] {
+  border-color: #edc0c4;
+  color: #a23e47;
+  background: #fff0f1;
+}
+
+.nim-experiment {
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.nim-experiment h3 {
+  margin: 0 0 0.4rem;
+  color: #21485f;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 0.97rem;
+}
+
+.nim-experiment p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.77rem;
+  line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+  .nim-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nim-sticks {
+    gap: clamp(0.5rem, 2.1vw, 1.2rem);
+  }
+
+  .nim-q-table thead th {
+    font-size: 0.75rem;
+  }
+
+  .nim-q-table tbody th,
+  .nim-q-value {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .nim-page {
+    gap: 1rem;
+    padding-top: 1.25rem;
+  }
+
+  .nim-intro {
+    padding: 1.2rem;
+  }
+
+  .nim-lead {
+    font-size: 0.87rem;
+  }
+
+  .nim-workspace,
+  .nim-left {
+    gap: 1rem;
+  }
+
+  .nim-card {
+    padding: 1rem;
+  }
+
+  .nim-card-heading h2 {
+    font-size: 1.2rem;
+  }
+
+  .nim-sticks {
+    gap: clamp(0.3rem, 1.4vw, 0.55rem);
+    min-height: 127px;
+    padding: 1.3rem 0 1rem;
+  }
+
+  .nim-stick {
+    height: 80px;
+  }
+
+  .nim-parameters {
+    gap: 0.5rem;
+  }
+
+  .nim-parameters .nim-field {
+    font-size: 0.71rem;
+  }
+
+  .nim-parameters .nim-field input[type="number"] {
+    padding: 0.5rem 0.4rem;
+  }
+
+  .nim-training-options {
+    gap: 0.6rem;
+  }
+
+  .nim-training-options .nim-field {
+    flex-basis: 100%;
+  }
+
+  .nim-statistics {
+    gap: 0.4rem;
+  }
+
+  .nim-statistics > div {
+    padding: 0.6rem 0.45rem;
+  }
+
+  .nim-statistics strong {
+    font-size: 1.15rem;
+  }
+
+  .nim-q-table th:first-child {
+    width: 29%;
+    padding-left: 0.5rem;
+  }
+
+  .nim-q-table thead th,
+  .nim-q-table tbody th {
+    font-size: 0.67rem;
+  }
+
+  .nim-q-value {
+    min-height: 36px;
+    margin: 2px;
+    font-size: 0.7rem;
+  }
+
+  .nim-experiments {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nim-page *,
+  .nim-page *::before,
+  .nim-page *::after {
+    scroll-behavior: auto;
+    transition: none !important;
+    animation: none !important;
+  }
+}

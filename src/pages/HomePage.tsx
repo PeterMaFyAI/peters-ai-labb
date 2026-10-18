@@ -10,7 +10,7 @@ function HomePage(): JSX.Element {
         <div className="hero-badge">AI, vetenskap och lärande</div>
         <h1>Peters AI-labb</h1>
         <p className="hero-text">
-          En pedagogisk portal där visualiseringar och framtida laborationer gör AI begripligt
+          En pedagogisk portal där visualiseringar och interaktiva laborationer gör AI begripligt
           steg för steg.
         </p>
         <div className="hero-actions">
@@ -27,7 +27,7 @@ function HomePage(): JSX.Element {
         <SectionHeader
           eyebrow="Utvalda resurser"
           title="Startklara moduler i portalen"
-          text="Portalen är byggd för att växa. Nya moduler kan läggas till via datalistan utan att routing eller layout behöver skrivas om."
+          text="Utforska AI med interaktiva visualiseringar och laborationer. Ändra, experimentera och följ hur modellerna lär sig."
         />
         <div className="resource-grid">
           {featuredResources.map((module) => (

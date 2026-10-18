@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node --experimental-strip-types --test src/modules/k-means/kMeansMath.test.mjs",
+    "test": "node --experimental-strip-types --test src/modules/k-means/kMeansMath.test.mjs src/modules/nim/nimLearning.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
