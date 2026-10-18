@@ -230,7 +230,7 @@ function NimPage(): JSX.Element {
             </li>
             <li>
               <h3>Den generella regeln</h3>
-              <p><strong>Försök lämna 1, 5, 9, 13 … pinnar till motspelaren:</strong> ett antal som är en mer än en multipel av 4. Komplettera sedan motspelarens drag så att era två drag tillsammans tar 4 pinnar.</p>
+              <p><strong>Försök lämna 1, 5 eller 9 pinnar till motspelaren:</strong> ett antal som är en mer än en multipel av 4. Komplettera sedan motspelarens drag så att era två drag tillsammans tar 4 pinnar.</p>
             </li>
           </ol>
         </div>}
