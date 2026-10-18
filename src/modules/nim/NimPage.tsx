@@ -199,10 +199,40 @@ function NimPage(): JSX.Element {
           <p>Välj vem som börjar och starta ett parti. AI:n väljer alltid bland de giltiga drag som har högst Q-värde. Om flera är lika bra väljer den slumpmässigt. Spel mot dig ändrar inte tabellen; inlärningen sker när du tränar AI:n.</p>
         </div>}
         {explanation === "strategy" && <div className="nim-explanation" id="nim-strategy">
-          <h2>Lämna 1, 5 eller 9 pinnar till motspelaren</h2>
-          <p>Med 1 pinne kvar måste den som är på tur ta den och förlora. Med 5 pinnar kan motspelaren ta 1–3; du svarar så att era drag tillsammans tar 4 och lämnar 1. Samma idé gäller för 9 pinnar.</p>
-          <div className="nim-strategy-track"><b>12 → ta 3 → 9</b><span>→ lämna</span><b>5</b><span>→ lämna</span><b>1</b></div>
-          <p>Från 12 pinnar kan den första spelaren alltså garantera vinst genom att först ta 3 och därefter komplettera varje motspelares drag till 4. Tillstånden 1, 5 och 9 har inget drag som garanterar vinst mot perfekt spel. Där visas ingen guldram. Guldramarna är facit och används aldrig av AI:n under träningen.</p>
+          <h2>Så fungerar vinnarstrategin</h2>
+          <ol className="nim-strategy-steps">
+            <li>
+              <h3>En pinne kvar: du förlorar</h3>
+              <p>Om det är din tur och bara en pinne finns kvar måste du ta den. Då förlorar du.</p>
+            </li>
+            <li>
+              <h3>Fem pinnar kvar: motspelaren kan tvinga dig att förlora</h3>
+              <p>Oavsett hur många pinnar du tar kan motspelaren lämna exakt en pinne till dig:</p>
+              <table className="nim-strategy-table">
+                <caption className="nim-sr-only">Motspelarens svar när du börjar din tur med fem pinnar kvar.</caption>
+                <thead><tr><th scope="col">Du tar</th><th scope="col">Motspelaren tar sedan</th><th scope="col">Kvar när det blir din tur igen</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>3</td><td>1</td></tr>
+                  <tr><td>2</td><td>2</td><td>1</td></tr>
+                  <tr><td>3</td><td>1</td><td>1</td></tr>
+                </tbody>
+              </table>
+              <p>Du kan alltså inte undvika förlust om motspelaren svarar rätt.</p>
+            </li>
+            <li>
+              <h3>Nio pinnar kvar: motspelaren kan tvinga dig tillbaka till fem</h3>
+              <p>Samma svar fungerar här. Tar du 1 tar motspelaren 3, tar du 2 tar motspelaren 2, och tar du 3 tar motspelaren 1.</p>
+              <p>Tillsammans tar ni bort 4 pinnar. När det blir din tur igen finns därför 5 kvar – och vi vet redan varför det är ett förlustläge.</p>
+            </li>
+            <li>
+              <h3>Därför kan den som börjar med tolv pinnar alltid vinna</h3>
+              <p>Ta först 3 pinnar och lämna 9 till motspelaren. Svara sedan så att era två drag tillsammans tar 4 pinnar. Då får motspelaren tillbaka turen med först 5 och därefter 1 pinne kvar. Motspelaren måste då ta den sista pinnen och förlorar.</p>
+            </li>
+            <li>
+              <h3>Den generella regeln</h3>
+              <p><strong>Försök lämna 1, 5, 9, 13 … pinnar till motspelaren:</strong> ett antal som är en mer än en multipel av 4. Komplettera sedan motspelarens drag så att era två drag tillsammans tar 4 pinnar.</p>
+            </li>
+          </ol>
         </div>}
       </section>
 

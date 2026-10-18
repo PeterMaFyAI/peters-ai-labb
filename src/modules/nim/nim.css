@@ -154,26 +154,74 @@
   padding-left: 1.3rem;
 }
 
-.nim-strategy-track {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0.85rem 0;
-  color: var(--muted);
+#nim-strategy > h2 {
+  font-size: 1.2rem;
 }
 
-.nim-strategy-track b {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.25rem;
-  min-height: 2.25rem;
-  padding: 0.3rem 0.55rem;
-  border: 1px solid #e4cb88;
-  border-radius: 9px;
-  color: #725307;
-  background: #fff7df;
+.nim-explanation .nim-strategy-steps {
+  display: grid;
+  gap: 1.2rem;
+  max-width: 80ch;
+  margin: 1rem 0 0;
+  padding-left: 1.5rem;
+}
+
+.nim-strategy-steps > li {
+  min-width: 0;
+  padding-left: 0.3rem;
+}
+
+.nim-strategy-steps > li::marker {
+  color: var(--brand-strong);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-weight: 700;
+}
+
+.nim-strategy-steps h3 {
+  color: #234d65;
+  line-height: 1.5;
+}
+
+.nim-strategy-table {
+  width: 100%;
+  max-width: 38rem;
+  margin: 0.8rem 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+
+.nim-strategy-table th,
+.nim-strategy-table td {
+  padding: 0.55rem 0.4rem;
+  border: 1px solid var(--line);
+  text-align: center;
+  overflow-wrap: break-word;
+}
+
+.nim-strategy-table th {
+  color: var(--brand-strong);
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.nim-strategy-table th:first-child {
+  width: 20%;
+}
+
+.nim-strategy-table th:nth-child(2) {
+  width: 38%;
+}
+
+.nim-strategy-table td {
+  background: var(--surface);
+}
+
+.nim-strategy-table td:last-child {
+  color: var(--brand-strong);
+  background: #edf7fc;
+  font-weight: 700;
 }
 
 .nim-workspace {
