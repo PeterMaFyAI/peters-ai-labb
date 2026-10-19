@@ -11,9 +11,11 @@ export interface PathStep {
   action: Action;
 }
 
-export interface FoundPath {
+export interface GreedyPath {
   steps: PathStep[];
   score: number;
+  ending: "goal" | "bird" | "loop" | "blocked";
+  hasTies: boolean;
 }
 
 export interface QStateDefinition {
@@ -264,21 +266,6 @@ export function nextEpsilon(
     : epsilon - clamp01(change);
   // A minimum must never increase an already lower epsilon.
   return Math.min(epsilon, Math.max(clamp01(minimum), next));
-}
-
-export function updateBestPath(
-  best: FoundPath | null,
-  steps: PathStep[],
-  outcome: StepOutcome,
-  goalKey: string
-): FoundPath | null {
-  if (!outcome.done || outcome.agentKey !== goalKey || steps.length === 0) return best;
-  const score = outcome.episodeScore;
-  if (!best || score > best.score + 1e-9 ||
-      (Math.abs(score - best.score) < 1e-9 && steps.length < best.steps.length)) {
-    return { score, steps: [...steps] };
-  }
-  return best;
 }
 
 export function roundQValue(value: number): number {
@@ -687,6 +674,48 @@ export function previewStep(params: StepPreviewParameters): StepPreview {
     reward: roundQValue(reward + (params.stepCost ?? 0)),
     terminal: reachedGoal || hitBird
   };
+}
+
+export function traceGreedyPath(params: Omit<StepPreviewParameters, "agentKey" | "agentAppleMask" | "action"> & {
+  qTable: QTable;
+  startKey: string;
+  walkableSet: Set<string>;
+  validActionsByState: Record<string, Action[]>;
+}): GreedyPath {
+  const path: GreedyPath = { steps: [], score: 0, ending: "blocked", hasTies: false };
+  let positionKey = params.startKey;
+  let appleMask = normalizeAppleMask(0, positionKey, params.appleIndexByKey, params.appleKeys.length);
+  const visited = new Set<string>();
+
+  while (params.walkableSet.has(positionKey)) {
+    if (positionKey === params.goalKey || params.cellItems[positionKey] === "bird") {
+      path.ending = positionKey === params.goalKey ? "goal" : "bird";
+      break;
+    }
+    const stateKey = encodeStateKey(positionKey, appleMask, params.expandedStateSpace);
+    if (visited.has(stateKey)) {
+      path.ending = "loop";
+      break;
+    }
+    visited.add(stateKey);
+    const actions = (params.validActionsByState[positionKey] ?? [])
+      .filter((action) => params.walkableSet.has(nextStateFromAction(positionKey, action)));
+    if (actions.length === 0) break;
+    const row = params.qTable[stateKey] ?? makeZeroRow();
+    const bestValue = maxQ(row, actions);
+    const bestActions = actions.filter((action) => row[action] === bestValue);
+    // Match the table's column order so ties never make the displayed route flicker.
+    const action = bestActions[0];
+    if (!action) break;
+    path.hasTies ||= bestActions.length > 1;
+    const preview = previewStep({ ...params, agentKey: positionKey, agentAppleMask: appleMask, action });
+    path.steps.push({ stateKey, positionKey, nextPositionKey: preview.nextKey, action });
+    path.score = roundQValue(path.score + preview.reward);
+    positionKey = preview.nextKey;
+    appleMask = preview.nextMask;
+  }
+
+  return path;
 }
 
 export function performStep(params: {

@@ -20,7 +20,7 @@ import {
   previewStep,
   roundQValue,
   shouldExpandAppleStates,
-  updateBestPath
+  traceGreedyPath
 } from "./qLearning.ts";
 
 function setup(environment = Q_ENVIRONMENTS[0]) {
@@ -41,6 +41,7 @@ function setup(environment = Q_ENVIRONMENTS[0]) {
     )
   ))];
   return {
+    startKey,
     qTable: createZeroQTable(stateKeys),
     agentKey: startKey,
     agentAppleMask: 0,
@@ -150,31 +151,76 @@ test("epsilon schedules decay per episode, respect their floor and never increas
   assert.equal(epsilon, 0.05);
 });
 
-test("best paths require a successful goal, maximize score and retain exact apple states and actions", () => {
+test("the displayed path follows current legal Q maxima without randomness or learning", (t) => {
+  t.mock.method(Math, "random", () => assert.fail("Path display must never sample randomness"));
+  const params = setup();
+  params.qTable[params.startKey] = { left: 1, right: 2, up: 999, down: 999 };
+  const original = structuredClone(params);
+  const goalPath = traceGreedyPath(params);
+  assert.equal(goalPath.ending, "goal");
+  assert.equal(goalPath.score, 2);
+  assert.deepEqual(goalPath.steps.map(step => step.action), ["right"]);
+  assert.deepEqual(params, original);
+
+  // The displayed policy must change even when the new Q maximum leads to a worse outcome.
+  params.qTable[params.startKey].left = 3;
+  const birdPath = traceGreedyPath(params);
+  assert.equal(birdPath.ending, "bird");
+  assert.equal(birdPath.score, -2);
+  assert.deepEqual(birdPath.steps.map(step => step.action), ["left"]);
+});
+
+test("Q-value ties follow column order and produce the same path on every render", () => {
+  const params = setup();
+  const path = traceGreedyPath(params);
+  assert.equal(path.hasTies, true);
+  assert.equal(path.steps[0].action, "left");
+  assert.equal(path.ending, "bird");
+  assert.deepEqual(traceGreedyPath(params), path);
+});
+
+test("greedy paths track apple memory, allow meaningful revisits and stop on repeated states", () => {
+  const params = setup({ ...Q_ENVIRONMENTS[2], enabledActions: ALL_ACTIONS });
+  params.qTable["0,0|0"].down = 5;
+  params.qTable["0,1|1"].up = 5;
+  params.qTable["0,0|1"].right = 5;
+  params.qTable["1,0|1"].down = 5;
+  const path = traceGreedyPath(params);
+  assert.equal(path.ending, "goal");
+  assert.equal(path.score, 3);
+  assert.deepEqual(path.steps.map(step => step.stateKey), ["0,0|0", "0,1|1", "0,0|1", "1,0|1"]);
+
+  params.qTable["0,0|1"].down = 6;
+  const loop = traceGreedyPath(params);
+  assert.equal(loop.ending, "loop");
+  assert.equal(loop.steps.length, 3);
+  assert.equal(loop.score, 1);
+});
+
+test("a policy without a legal continuation reports a blocked path", () => {
+  const params = setup(Q_ENVIRONMENTS[1]);
+  params.validActionsByState[params.startKey] = [];
+  assert.deepEqual(traceGreedyPath(params), { steps: [], score: 0, ending: "blocked", hasTies: false });
+  params.validActionsByState[params.startKey] = ["up"];
+  assert.equal(traceGreedyPath(params).steps.length, 0);
+});
+
+test("the displayed six-step route identifies exact table cells before and after the apple", () => {
   const params = setup(Q_ENVIRONMENTS[5]);
-  let current = params;
-  const steps = [];
-  let best = null;
-  let lastOutcome;
+  let agentKey = params.startKey;
+  let agentAppleMask = 0;
   for (const action of ["right", "right", "down", "right", "down", "down"]) {
-    const outcome = performStep({ ...current, action });
-    steps.push({ stateKey: outcome.calculation.stateKey, positionKey: current.agentKey,
-      nextPositionKey: outcome.agentKey, action });
-    best = updateBestPath(best, steps, outcome, params.goalKey);
-    if (!outcome.done) assert.equal(best, null);
-    current = continueFrom(params, outcome);
-    lastOutcome = outcome;
+    params.qTable[encodeStateKey(agentKey, agentAppleMask, true)][action] = 10;
+    const preview = previewStep({ ...params, agentKey, agentAppleMask, action });
+    agentKey = preview.nextKey;
+    agentAppleMask = preview.nextMask;
   }
-  assert.equal(best.score, 2.4);
-  assert.equal(best.steps.length, 6);
-  assert.deepEqual(best.steps[2], { stateKey: "2,0|0", positionKey: "2,0", nextPositionKey: "2,1", action: "down" });
-  assert.deepEqual(best.steps[3], { stateKey: "2,1|1", positionKey: "2,1", nextPositionKey: "3,1", action: "right" });
-  assert.equal(updateBestPath(best, steps, { ...lastOutcome, episodeScore: 1.4 }, params.goalKey), best);
-  assert.equal(updateBestPath(best, steps, { ...lastOutcome, agentKey: "1,1", episodeScore: 99 }, params.goalKey), best);
-  const shorter = updateBestPath({ score: best.score, steps: [...steps, ...steps] }, steps, lastOutcome, params.goalKey);
-  assert.equal(shorter.steps.length, 6);
-  steps.pop();
-  assert.equal(best.steps.length, 6);
+  const path = traceGreedyPath(params);
+  assert.equal(path.ending, "goal");
+  assert.equal(path.score, 2.4);
+  assert.equal(path.steps.length, 6);
+  assert.deepEqual(path.steps[2], { stateKey: "2,0|0", positionKey: "2,0", nextPositionKey: "2,1", action: "down" });
+  assert.deepEqual(path.steps[3], { stateKey: "2,1|1", positionKey: "2,1", nextPositionKey: "3,1", action: "right" });
 });
 
 test("seeded automatic training with epsilon decay learns a safe six-step apple route", (t) => {
@@ -197,18 +243,12 @@ test("seeded automatic training with epsilon decay learns a safe six-step apple 
     qTable = current.qTable;
     epsilon = nextEpsilon(epsilon, "multiply", 0.98, 0.05);
   }
-  let current = { ...params, qTable, epsilon: 0 };
-  let outcome;
-  for (let step = 0; step < 20; step += 1) {
-    outcome = performStep(current);
-    current = { ...continueFrom(params, outcome), epsilon: 0 };
-    if (outcome.done) break;
-  }
-  assert.equal(outcome.done, true);
-  assert.equal(outcome.agentKey, params.goalKey);
-  assert.equal(outcome.agentAppleMask, 1);
-  assert.equal(outcome.stepCount, 6);
-  assert.equal(outcome.episodeScore, 2.4);
+  const path = traceGreedyPath({ ...params, qTable });
+  assert.equal(path.ending, "goal");
+  assert.equal(path.steps.at(-1).nextPositionKey, params.goalKey);
+  assert.ok(path.steps.at(-1).stateKey.endsWith("|1"));
+  assert.equal(path.steps.length, 6);
+  assert.equal(path.score, 2.4);
 });
 
 test("terminal goal and bird rewards ignore continuation values and leave the original table intact", () => {

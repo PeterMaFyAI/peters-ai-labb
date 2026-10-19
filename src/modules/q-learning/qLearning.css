@@ -20,13 +20,6 @@
   color: var(--muted);
 }
 
-.q-learning-toolbar {
-  margin-top: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-}
-
 .q-learning-main-grid {
   display: grid;
   gap: 0.9rem;
@@ -61,6 +54,22 @@
   margin: 0.3rem 0 0;
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.q-table-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.3rem 0.6rem;
+  align-items: start;
+}
+
+.q-table-head p {
+  grid-column: 1 / -1;
+}
+
+.q-reset-button {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.6rem;
 }
 
 .q-environment-picker,
@@ -566,6 +575,10 @@
   font-size: 0.9rem;
   font-weight: 700;
   color: #0a4f73;
+}
+
+.q-epsilon-constant {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .q-advanced {
