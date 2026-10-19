@@ -18,9 +18,9 @@ import {
   createAppleIndexByKey, normalizeAppleMask, buildCollectedApplesMap, keyFromXY,
   getValidActions, shouldExpandAppleStates, encodeStateKey, formatStateLabel,
   parseKey, hasPathToGoal, alignQTable, cloneQTable, performStep, clamp01,
-  pickAction, makeZeroRow, previewStep,
+  pickAction, makeZeroRow, previewStep, roundQValue, nextEpsilon, updateBestPath,
   type Action, type TileItem, type QTable, type QStateDefinition,
-  type QCalculation, type StepOutcome
+  type QCalculation, type StepOutcome, type EpsilonSchedule, type FoundPath, type PathStep
 } from "./qLearning";
 
 interface PendingStep {
@@ -123,12 +123,19 @@ function QLearningPage(): JSX.Element {
   const [alpha, setAlpha] = useState(0.5);
   const [gamma, setGamma] = useState(0.9);
   const [epsilon, setEpsilon] = useState(0.9);
+  const [stepCost, setStepCost] = useState(Q_ENVIRONMENTS[0].stepCost);
+  const [epsilonSchedule, setEpsilonSchedule] = useState<EpsilonSchedule>("constant");
+  const [epsilonChange, setEpsilonChange] = useState(0.98);
+  const [epsilonMinimum, setEpsilonMinimum] = useState(0.05);
+  const [bestPath, setBestPath] = useState<FoundPath | null>(null);
+  const [showBestPath, setShowBestPath] = useState(false);
+  const manualPathRef = useRef<PathStep[]>([]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [isAutoRunning, setIsAutoRunning] = useState(false);
-  const [autoMode, setAutoMode] = useState<"animated" | "fast" | null>(null);
   const [animationDelay, setAnimationDelay] = useState(420);
-  const [animatedEpisodes, setAnimatedEpisodes] = useState(8);
-  const [fastEpisodes, setFastEpisodes] = useState(150);
+  const [trainingEpisodes, setTrainingEpisodes] = useState(8);
+  const [showAnimations, setShowAnimations] = useState(true);
   const [stopRequested, setStopRequested] = useState(false);
   const stopRequestedRef = useRef(false);
 
@@ -326,10 +333,6 @@ function QLearningPage(): JSX.Element {
   }, [qStateKeys]);
 
   useEffect(() => {
-    stopRequestedRef.current = stopRequested;
-  }, [stopRequested]);
-
-  useEffect(() => {
     if (normalizedAgentAppleMask === agentAppleMask) return;
     setAgentAppleMask(normalizedAgentAppleMask);
   }, [agentAppleMask, normalizedAgentAppleMask]);
@@ -367,6 +370,7 @@ function QLearningPage(): JSX.Element {
 
   const resetEpisode = useCallback(
     (nextEpisodeIndex?: number, message?: string) => {
+      manualPathRef.current = [];
       setAgentKey(startKey);
       setAgentAppleMask(0);
       setEpisodeDone(false);
@@ -387,9 +391,10 @@ function QLearningPage(): JSX.Element {
 
   const resetQForCurrentGrid = useCallback(
     (message: string) => {
+      manualPathRef.current = [];
+      setBestPath(null);
       setQTable(createZeroQTable(qStateKeys));
       setIsAutoRunning(false);
-      setAutoMode(null);
       setStopRequested(false);
       setEpisodeIndex(1);
       setAgentKey(startKey);
@@ -430,12 +435,22 @@ function QLearningPage(): JSX.Element {
       qTable, agentKey, agentAppleMask: normalizedAgentAppleMask,
       episodeScore, stepCount, walkableSet, goalKey,
       cellItems: normalizedItems, labelMap, appleKeys, appleIndexByKey,
-      expandedStateSpace, validActionsByState, alpha, gamma, epsilon,
+      expandedStateSpace, validActionsByState, alpha, gamma, epsilon, stepCost,
       action: pendingStep.action
     });
     setPendingStep(null);
     setHintShown(false);
-    if (outcome) syncOutcomeToUi(outcome, episodeIndex);
+    if (outcome) {
+      manualPathRef.current = [...manualPathRef.current, {
+        stateKey: outcome.calculation.stateKey,
+        positionKey: agentKey,
+        nextPositionKey: outcome.agentKey,
+        action: outcome.action
+      }];
+      const completedPath = manualPathRef.current;
+      setBestPath((previous) => updateBestPath(previous, completedPath, outcome, goalKey));
+      syncOutcomeToUi(outcome, episodeIndex);
+    }
   };
 
   const handleEnvironmentChange = (id: string) => {
@@ -448,6 +463,18 @@ function QLearningPage(): JSX.Element {
     setGoalKey(environment.goalKey);
     setCellItems({ ...environment.cellItems });
     setEnabledActions([...environment.enabledActions]);
+    setStepCost(environment.stepCost);
+    setBestPath(null);
+    manualPathRef.current = [];
+    setEpsilonSchedule(environment.automaticOnly ? "multiply" : "constant");
+    if (environment.automaticOnly) {
+      setAdvancedOpen(true);
+      setTrainingEpisodes(200);
+      setAnimationDelay(130);
+      setEpsilon(0.9);
+      setEpsilonChange(0.98);
+      setEpsilonMinimum(0.05);
+    }
     setQTable(createZeroQTable(environment.walkableKeys.filter(
       (key) => key !== environment.goalKey && environment.cellItems[key] !== "bird"
     )));
@@ -464,7 +491,9 @@ function QLearningPage(): JSX.Element {
     setEditMode(false);
     setDragToken(null);
     setEditorInfo("");
-    setStatusText("Miljön är redo.\nKlicka på Stega ett drag och räkna själv.");
+    setStatusText(environment.automaticOnly
+      ? "Miljön är redo. Starta automatisk träning i panelen till höger."
+      : "Miljön är redo.\nKlicka på Stega ett drag och räkna själv.");
   };
 
   const handleResetQ = () => {
@@ -472,21 +501,30 @@ function QLearningPage(): JSX.Element {
     resetQForCurrentGrid("Q-tabellen nollställdes och episod 1 är redo.");
   };
 
-  const runAnimatedTraining = useCallback(async () => {
+  const runTraining = useCallback(async () => {
     if (isAutoRunning || editMode || pendingStep) return;
 
-    const episodeCount = Math.max(1, Math.floor(animatedEpisodes || 1));
+    const episodeCount = Math.max(1, Math.floor(trainingEpisodes || 1));
     setIsAutoRunning(true);
-    setAutoMode("animated");
     setStopRequested(false);
     stopRequestedRef.current = false;
-    setStatusText(`Animerad träning startad (${episodeCount} episoder).`);
+    setStatusText(`Träning startad (${episodeCount} episoder${showAnimations ? " med" : " utan"} animationer).`);
 
     let localQ = cloneQTable(qTable);
+    let localEpsilon = epsilon;
+    let localBestPath = bestPath;
+    let lastEpisodePath: PathStep[] = [];
+    manualPathRef.current = [];
     const firstEpisode = episodeIndex;
+    let completedEpisodes = 0;
     let stopped = false;
 
     for (let episodeNumber = 0; episodeNumber < episodeCount; episodeNumber += 1) {
+      if (stopRequestedRef.current) {
+        stopped = true;
+        break;
+      }
+
       const activeEpisode = firstEpisode + episodeNumber;
       let localAgent = startKey;
       let localMask = normalizeAppleMask(
@@ -499,16 +537,20 @@ function QLearningPage(): JSX.Element {
       let localStepCount = 0;
       let done = false;
       let blocked = false;
+      const episodePath: PathStep[] = [];
+      lastEpisodePath = episodePath;
 
-      setEpisodeIndex(activeEpisode);
-      setAgentKey(startKey);
-      setAgentAppleMask(localMask);
-      setEpisodeDone(false);
-      setEpisodeScore(0);
-      setStepCount(0);
-      setCalculation(null);
-      setPendingStep(null);
-      setHintShown(false);
+      if (showAnimations) {
+        setEpisodeIndex(activeEpisode);
+        setAgentKey(startKey);
+        setAgentAppleMask(localMask);
+        setEpisodeDone(false);
+        setEpisodeScore(0);
+        setStepCount(0);
+        setCalculation(null);
+        setPendingStep(null);
+        setHintShown(false);
+      }
 
       for (
         let stepIndex = 0;
@@ -536,7 +578,8 @@ function QLearningPage(): JSX.Element {
           validActionsByState,
           alpha,
           gamma,
-          epsilon
+          epsilon: localEpsilon,
+          stepCost
         });
 
         if (!outcome) {
@@ -553,6 +596,18 @@ function QLearningPage(): JSX.Element {
           break;
         }
 
+        episodePath.push({
+          stateKey: outcome.calculation.stateKey,
+          positionKey: localAgent,
+          nextPositionKey: outcome.agentKey,
+          action: outcome.action
+        });
+        const nextBestPath = updateBestPath(localBestPath, episodePath, outcome, goalKey);
+        if (nextBestPath !== localBestPath) {
+          localBestPath = nextBestPath;
+          setBestPath(nextBestPath);
+        }
+
         localQ = outcome.qTable;
         localAgent = outcome.agentKey;
         localMask = outcome.agentAppleMask;
@@ -560,8 +615,10 @@ function QLearningPage(): JSX.Element {
         localStepCount = outcome.stepCount;
         done = outcome.done;
 
-        syncOutcomeToUi(outcome, activeEpisode);
-        await wait(animationDelay);
+        if (showAnimations) {
+          syncOutcomeToUi(outcome, activeEpisode);
+          await wait(animationDelay);
+        }
 
         if (done) {
           break;
@@ -569,36 +626,56 @@ function QLearningPage(): JSX.Element {
       }
 
       if (stopped) break;
+      completedEpisodes += 1;
+      localEpsilon = nextEpsilon(localEpsilon, epsilonSchedule, epsilonChange, epsilonMinimum);
+      if (showAnimations) setEpsilon(localEpsilon);
 
-      if (!done && !blocked) {
+      if (!done && !blocked && showAnimations) {
         setStatusText(
           `Episod ${activeEpisode} stoppades efter ${MAX_STEPS_PER_EPISODE} steg (ingen målträff).`
         );
       }
+
+      // Yield between batches so training without animations can also be stopped.
+      if (!showAnimations && completedEpisodes % 25 === 0) {
+        setQTable(localQ);
+        setEpisodeIndex(firstEpisode + completedEpisodes);
+        setEpsilon(localEpsilon);
+        await wait(0);
+      }
     }
 
-    const nextEpisode = firstEpisode + episodeCount;
+    const nextEpisode = firstEpisode + completedEpisodes;
     setQTable(localQ);
+    setEpsilon(localEpsilon);
 
     if (stopped) {
-      setStatusText("Animerad träning stoppad.");
+      const message = `Träningen stoppades efter ${completedEpisodes} hela episoder.`;
+      if (showAnimations) {
+        manualPathRef.current = lastEpisodePath;
+        setStatusText(message);
+      } else {
+        resetEpisode(nextEpisode, message);
+      }
     } else {
-      resetEpisode(nextEpisode, `Animerad träning klar (${episodeCount} episoder).`);
+      resetEpisode(nextEpisode, `Träning klar: ${episodeCount} episoder genomförda ${showAnimations ? "med" : "utan"} animationer.`);
     }
 
     setIsAutoRunning(false);
-    setAutoMode(null);
     setStopRequested(false);
     stopRequestedRef.current = false;
   }, [
     alpha,
     appleIndexByKey,
     appleKeys,
-    animatedEpisodes,
     animationDelay,
+    bestPath,
     editMode,
     episodeIndex,
     epsilon,
+    epsilonChange,
+    epsilonMinimum,
+    epsilonSchedule,
     expandedStateSpace,
     gamma,
     goalKey,
@@ -608,95 +685,24 @@ function QLearningPage(): JSX.Element {
     normalizedItems,
     qTable,
     resetEpisode,
+    showAnimations,
     startKey,
+    stepCost,
     syncOutcomeToUi,
+    trainingEpisodes,
     validActionsByState,
     walkableSet
   ]);
 
-  const handleAnimatedButton = () => {
+  const handleTrainingButton = () => {
     if (!isAutoRunning) {
-      void runAnimatedTraining();
+      void runTraining();
       return;
     }
 
-    if (autoMode === "animated") {
-      setStopRequested(true);
-      setStatusText("Stoppsignal skickad. Träning avslutas...");
-    }
-  };
-
-  const handleFastTraining = () => {
-    if (isAutoRunning || editMode || pendingStep) return;
-
-    const episodeCount = Math.max(1, Math.floor(fastEpisodes || 1));
-    setIsAutoRunning(true);
-    setAutoMode("fast");
-    setStatusText(`Snabbträning kör ${episodeCount} episoder...`);
-
-    let localQ = cloneQTable(qTable);
-    let nextEpisode = episodeIndex;
-
-    for (let episodeNumber = 0; episodeNumber < episodeCount; episodeNumber += 1) {
-      let localAgent = startKey;
-      let localMask = normalizeAppleMask(
-        0,
-        startKey,
-        appleIndexByKey,
-        appleKeys.length
-      );
-      let localScore = 0;
-      let localStepCount = 0;
-
-      for (
-        let stepIndex = 0;
-        stepIndex < MAX_STEPS_PER_EPISODE;
-        stepIndex += 1
-      ) {
-        const outcome = performStep({
-          qTable: localQ,
-          agentKey: localAgent,
-          agentAppleMask: localMask,
-          episodeScore: localScore,
-          stepCount: localStepCount,
-          walkableSet,
-          goalKey,
-          cellItems: normalizedItems,
-          labelMap,
-          appleKeys,
-          appleIndexByKey,
-          expandedStateSpace,
-          validActionsByState,
-          alpha,
-          gamma,
-          epsilon
-        });
-
-        if (!outcome) {
-          break;
-        }
-
-        localQ = outcome.qTable;
-        localAgent = outcome.agentKey;
-        localMask = outcome.agentAppleMask;
-        localScore = outcome.episodeScore;
-        localStepCount = outcome.stepCount;
-
-        if (outcome.done) {
-          break;
-        }
-      }
-
-      nextEpisode += 1;
-    }
-
-    setQTable(localQ);
-    resetEpisode(
-      nextEpisode,
-      `Snabbträning klar: ${episodeCount} episoder genomförda utan animation.`
-    );
-    setIsAutoRunning(false);
-    setAutoMode(null);
+    stopRequestedRef.current = true;
+    setStopRequested(true);
+    setStatusText("Stoppsignal skickad. Träningen avslutas...");
   };
 
   const toggleEditMode = () => {
@@ -859,10 +865,19 @@ function QLearningPage(): JSX.Element {
       ? tableActions.map((action) => ACTION_LABELS[action]).join(", ")
       : "inga actions valda";
   const selectedEnvironment = Q_ENVIRONMENTS.find((item) => item.id === selectedEnvironmentId);
+  const highlightedPath = showBestPath && !editMode ? bestPath : null;
+  const bestPathCells = new Set(highlightedPath
+    ? [startKey, ...highlightedPath.steps.map((step) => step.nextPositionKey)] : []);
+  const bestPathActions = new Set(highlightedPath?.steps.map((step) => `${step.stateKey}|${step.action}`));
+  const pathPoints = highlightedPath
+    ? [startKey, ...highlightedPath.steps.map((step) => step.nextPositionKey)].map((key) => {
+      const { x, y } = parseKey(key);
+      return `${x - gridBounds.minX + 0.5},${y - gridBounds.minY + 0.5}`;
+    }).join(" ") : "";
   const pendingPreview = pendingStep ? previewStep({
     agentKey, agentAppleMask: normalizedAgentAppleMask, action: pendingStep.action,
     goalKey, cellItems: normalizedItems, labelMap, appleKeys,
-    appleIndexByKey, expandedStateSpace
+    appleIndexByKey, expandedStateSpace, stepCost
   }) : null;
 
   return (
@@ -871,7 +886,7 @@ function QLearningPage(): JSX.Element {
         <h1 className="q-learning-title">Q-learning: masken och äppeljakten</h1>
         <p className="q-learning-lead">
           Hjälp masken ({"\u{1F41B}"}) att lära sig hitta till målet S.
-          Räkna själv på papper, uppdatera din Q-tabell och jämför sedan med facit.
+          Räkna själv på papper och jämför med facit, eller följ automatisk träning.
         </p>
 
         <div className="q-learning-toolbar">
@@ -931,12 +946,13 @@ function QLearningPage(): JSX.Element {
                     normalizedItems,
                     collectedApples
                   );
-                  const cellReward = isGoal ? 2 : visualItem === "🐦" ? -2 : visualItem === "🍎" ? 1 : null;
+                  const itemReward = isGoal ? 2 : visualItem === "🐦" ? -2 : visualItem === "🍎" ? 1 : null;
+                  const cellReward = itemReward === null ? null : roundQValue(itemReward + stepCost);
 
                   return (
                     <div
                       key={`training-${key}`}
-                      aria-label={isWalkable ? `Ruta ${label}${isStart ? ", start" : ""}${isGoal ? ", mål" : ""}${normalizedItems[key] === "bird" ? ", fågel" : ""}${visualItem === "🍎" ? ", äpple" : ""}${cellReward !== null ? `, belöning ${cellReward > 0 ? "+" : ""}${cellReward}` : ""}${isAgent ? ", masken" : ""}` : "Blockerad ruta"}
+                      aria-label={isWalkable ? `Ruta ${label}${isStart ? ", start" : ""}${isGoal ? ", mål" : ""}${normalizedItems[key] === "bird" ? ", fågel" : ""}${visualItem === "🍎" ? ", äpple" : ""}${cellReward !== null ? `, belöning ${cellReward > 0 ? "+" : ""}${cellReward}` : ""}${isAgent ? ", masken" : ""}${bestPathCells.has(key) ? ", bästa hittade väg" : ""}` : "Blockerad ruta"}
                       className={`q-cell ${
                         isWalkable ? "q-cell-walkable" : "q-cell-blocked"
                       } ${isStart ? "q-cell-start" : ""} ${
@@ -945,7 +961,7 @@ function QLearningPage(): JSX.Element {
                         cellReward !== null ? "q-cell-has-reward" : ""
                       } ${
                         editMode ? "q-cell-editable" : ""
-                      } ${dragToken ? "q-cell-drag-active" : ""}`}
+                      } ${dragToken ? "q-cell-drag-active" : ""} ${bestPathCells.has(key) ? "q-cell-best-path" : ""}`}
                       onMouseDown={(event) => handleEditorMouseDown(event, key)}
                       onMouseUp={(event) => handleEditorMouseUp(event, key)}
                       onContextMenu={(event) => handleEditorRightClick(event, key)}
@@ -959,8 +975,8 @@ function QLearningPage(): JSX.Element {
                             </span>
                           ) : null}
                           {cellReward !== null && (
-                            <span className={`q-cell-reward ${cellReward > 0 ? "positive" : "negative"}`} aria-hidden="true">
-                              {cellReward > 0 ? "+" : "−"}{Math.abs(cellReward)}
+                            <span className={`q-cell-reward ${cellReward > 0 ? "positive" : cellReward < 0 ? "negative" : ""}`} aria-hidden="true">
+                              {cellReward > 0 ? "+" : cellReward < 0 ? "−" : ""}{Math.abs(cellReward)}
                             </span>
                           )}
                           {isAgent ? (
@@ -973,11 +989,26 @@ function QLearningPage(): JSX.Element {
                     </div>
                   );
                 })}
+                {highlightedPath && (
+                  <svg className="q-best-path-overlay" aria-hidden="true"
+                    viewBox={`0 0 ${trainingColumns} ${Math.ceil(trainingCells.length / trainingColumns)}`}
+                    preserveAspectRatio="none">
+                    <polyline className="q-best-path-halo" points={pathPoints} />
+                    <polyline className="q-best-path-line" points={pathPoints} />
+                  </svg>
+                )}
               </div>
 
             </div>
 
             <p className="q-environment-description">Mål och fågel avslutar episoden.</p>
+            {stepCost !== 0 && <p className="q-environment-description">
+              Varje drag kostar {Math.abs(stepCost).toFixed(2)} poäng, även till äpple, fågel och mål.
+              Belöningarna i rutorna inkluderar stegkostnaden.
+            </p>}
+            {highlightedPath && <p className="q-path-note">
+              Röd väg: bästa lyckade episoden, {highlightedPath.steps.length} steg och {highlightedPath.score.toFixed(2)} poäng.
+            </p>}
 
             {editMode ? (
               <div className="q-edit-panel">
@@ -1008,9 +1039,9 @@ function QLearningPage(): JSX.Element {
             ) : null}
 
             <div className="q-step-panel">
-              <h3 className="q-step-heading">Räkna ett steg i taget</h3>
+              <h3 className="q-step-heading">{selectedEnvironment?.automaticOnly ? "Träningsstatus" : "Räkna ett steg i taget"}</h3>
               <p className="q-step-prompt" aria-live="polite">{statusText}</p>
-              <div className="q-step-actions">
+              {!selectedEnvironment?.automaticOnly && <div className="q-step-actions">
                 <button className="q-btn q-btn-primary" onClick={handleManualStep}
                   disabled={isAutoRunning || !canTrain || editMode}>
                   {episodeDone ? "Ny episod" : pendingStep ? "Fullfölj steget" : "Stega ett drag"}
@@ -1019,7 +1050,7 @@ function QLearningPage(): JSX.Element {
                   aria-expanded={hintShown} aria-controls="q-step-hint">
                   {hintShown ? "Dölj ledtråd" : "Visa ledtråd"}
                 </button>}
-              </div>
+              </div>}
               {hintShown && pendingStep && pendingPreview && (
                 <p className="q-hint" id="q-step-hint">
                   Läs det gamla värdet på rad <strong>{qStateLabelsByKey[pendingStep.stateKey]}</strong>,
@@ -1076,7 +1107,7 @@ function QLearningPage(): JSX.Element {
                     min={0}
                     max={1}
                     step={0.05}
-                    value={epsilon}
+                    value={Number(epsilon.toFixed(4))}
                     onChange={(event) =>
                       setEpsilon(clamp01(Number.parseFloat(event.target.value) || 0))
                     }
@@ -1084,159 +1115,211 @@ function QLearningPage(): JSX.Element {
                   />
                 </label>
               </div>
+              <label className="q-field q-step-cost-field">
+                <span>Stegkostnad</span>
+                <input type="number" max={0} step={0.1} value={stepCost}
+                  disabled={isAutoRunning || !!pendingStep}
+                  onChange={(event) => {
+                    const cost = roundQValue(Math.min(0, Number.parseFloat(event.target.value) || 0));
+                    if (cost === stepCost) return;
+                    setStepCost(cost);
+                    resetQForCurrentGrid("Stegkostnaden ändrades. Q-tabellen och den bästa vägen nollställdes.");
+                  }} />
+              </label>
+              <p className="q-environment-description">0 ger ingen stegkostnad. När kostnaden ändras nollställs träningen.</p>
             </div>
           </article>
 
-          <article className="q-card">
-            <div className="q-card-head">
-              <h2>Q-tabell</h2>
-              <p>
-                En rad per tillstånd utom S och fågelrutor. Kolumner:{" "}
-                {selectedActionsText}.
-              </p>
-            </div>
-            <div className="q-table-wrap">
-              <table className="q-table">
-                <thead>
-                  <tr>
-                    <th>Tillstånd</th>
-                    {tableActions.map((action) => (
-                      <th key={`head-${action}`}>{ACTION_LABELS[action]}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {qStateKeys.map((stateKey) => (
-                    <tr key={`row-${stateKey}`}>
-                      <td>{qStateLabelsByKey[stateKey]}</td>
-                      {tableActions.map((action) => {
-                        const isValidAction =
-                          validActionsByQState[stateKey]?.includes(action) ?? false;
-                        const isUpdated = isValidAction && calculation?.stateKey === stateKey && calculation.action === action;
-                        return (
-                          <td
-                            key={`${stateKey}-${action}`}
-                            className={!isValidAction ? "q-table-invalid" : isUpdated ? "q-table-updated" : ""}
-                            aria-label={isUpdated ? `Senast uppdaterat: ${calculation.newQ.toFixed(2)}, tidigare ${calculation.oldQ.toFixed(2)}` : undefined}
-                          >
-                            {isValidAction ? <span className="q-cell-values">
-                              <span>{(qTable[stateKey]?.[action] ?? 0).toFixed(2)}</span>
-                              {isUpdated && <s className="q-old-value" aria-hidden="true">{calculation.oldQ.toFixed(2)}</s>}
-                            </span> : "X"}
-                          </td>
-                        );
-                      })}
+          <div className="q-learning-side-panels">
+            <article className="q-card">
+              <div className="q-card-head">
+                <h2>Q-tabell</h2>
+                <p>
+                  En rad per tillstånd utom S och fågelrutor. Kolumner:{" "}
+                  {selectedActionsText}.
+                </p>
+              </div>
+              <div className="q-table-wrap">
+                <table className={`q-table ${highlightedPath ? "q-table-highlighting-path" : ""}`}>
+                  <thead>
+                    <tr>
+                      <th>Tillstånd</th>
+                      {tableActions.map((action) => (
+                        <th key={`head-${action}`}>{ACTION_LABELS[action]}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="q-rounding-note">Varje nytt Q-värde avrundas till två decimaler. Använd det avrundade värdet i nästa beräkning. X betyder att draget inte är giltigt.</p>
+                  </thead>
+                  <tbody>
+                    {qStateKeys.map((stateKey) => (
+                      <tr key={`row-${stateKey}`}>
+                        <td>{qStateLabelsByKey[stateKey]}</td>
+                        {tableActions.map((action) => {
+                          const isValidAction =
+                            validActionsByQState[stateKey]?.includes(action) ?? false;
+                          const isUpdated = isValidAction && calculation?.stateKey === stateKey && calculation.action === action;
+                          const isBestPath = isValidAction && bestPathActions.has(`${stateKey}|${action}`);
+                          const cellDescription = [
+                            isBestPath ? `Bästa hittade väg: ${(qTable[stateKey]?.[action] ?? 0).toFixed(2)}` : "",
+                            isUpdated ? `Senast uppdaterat: ${calculation.newQ.toFixed(2)}, tidigare ${calculation.oldQ.toFixed(2)}` : ""
+                          ].filter(Boolean).join(". ");
+                          return (
+                            <td
+                              key={`${stateKey}-${action}`}
+                              className={`${!isValidAction ? "q-table-invalid" : isUpdated ? "q-table-updated" : ""} ${isBestPath ? "q-table-best-path" : ""}`}
+                              aria-label={cellDescription || undefined}
+                            >
+                              {isValidAction ? <span className="q-cell-values">
+                                <span>{(qTable[stateKey]?.[action] ?? 0).toFixed(2)}</span>
+                                {isUpdated && <s className="q-old-value" aria-hidden="true">{calculation.oldQ.toFixed(2)}</s>}
+                              </span> : "X"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="q-rounding-note">Varje nytt Q-värde avrundas till två decimaler. Använd det avrundade värdet i nästa beräkning. X betyder att draget inte är giltigt.</p>
+              {expandedStateSpace && <p className="q-rounding-note">
+                Samma ruta har olika tillstånd beroende på om äpplet finns kvar (🍎) eller är uppätet (❌).
+              </p>}
+              {highlightedPath && <p className="q-path-note">Röda ramar visar dragen i den bästa hittade vägen.</p>}
 
-            <div className="q-calc-box">
-              <h3>Q-formeln och facit</h3>
-              <div
-                className="q-calc-formula"
-                dangerouslySetInnerHTML={renderMath(calculationFormula(calculation))}
-              />
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section className="section">
-        <details className="q-advanced">
-          <summary>Fler möjligheter</summary>
-          <div className="q-controls-grid">
-            <article className="q-controls-card">
-              <h2>Egen miljö</h2>
-              <p>Ändra rutorna, flytta start och mål eller välj andra riktningar.</p>
-              <button className={`q-btn ${editMode ? "q-btn-secondary" : ""}`}
-                onClick={toggleEditMode} disabled={isAutoRunning || !!pendingStep}>
-                {editMode ? "Lämna redigeringsläge" : "Redigeringsläge (4×4)"}
-              </button>
+              {!selectedEnvironment?.automaticOnly && <div className="q-calc-box">
+                <h3>Q-formeln och facit</h3>
+                <div
+                  className="q-calc-formula"
+                  dangerouslySetInnerHTML={renderMath(calculationFormula(calculation))}
+                />
+              </div>}
             </article>
 
-          <article className="q-controls-card">
-            <h2>Automatisk träning (med animation)</h2>
-            <div className="q-param-grid">
-              <label className="q-field">
-                <span>Hastighet</span>
-                <select
-                  value={animationDelay}
-                  onChange={(event) =>
-                    setAnimationDelay(Number.parseInt(event.target.value, 10))
-                  }
-                  disabled={isAutoRunning || !!pendingStep}
-                >
-                  <option value={700}>Lugn</option>
-                  <option value={420}>Normal</option>
-                  <option value={220}>Snabb</option>
-                  <option value={130}>Turbo</option>
-                </select>
-              </label>
-              <label className="q-field">
-                <span>Episoder</span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={animatedEpisodes}
-                  onChange={(event) =>
-                    setAnimatedEpisodes(
-                      Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                    )
-                  }
-                  disabled={isAutoRunning || !!pendingStep}
-                />
-              </label>
-            </div>
-            <div className="q-btn-row">
-              <button
-                className="q-btn q-btn-primary"
-                onClick={handleAnimatedButton}
-                disabled={!canTrain || editMode || !!pendingStep || (isAutoRunning && autoMode !== "animated")}
-              >
-                {isAutoRunning && autoMode === "animated"
-                  ? stopRequested
-                    ? "Stoppar..."
-                    : "Stoppa animation"
-                  : "Starta animerad träning"}
-              </button>
-            </div>
-          </article>
+            <details className="q-advanced" open={advancedOpen}
+              onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+              <summary>Fler möjligheter</summary>
+              <div className="q-controls-grid">
+                <article className="q-controls-card">
+                  <h2>Egen miljö</h2>
+                  <p>Ändra rutorna, flytta start och mål eller välj andra riktningar.</p>
+                  <button className={`q-btn ${editMode ? "q-btn-secondary" : ""}`}
+                    onClick={toggleEditMode} disabled={isAutoRunning || !!pendingStep}>
+                    {editMode ? "Lämna redigeringsläge" : "Redigeringsläge (4×4)"}
+                  </button>
+                </article>
 
-          <article className="q-controls-card">
-            <h2>Snabbträning (utan animation)</h2>
-            <div className="q-param-grid">
-              <label className="q-field">
-                <span>Episoder</span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={fastEpisodes}
-                  onChange={(event) =>
-                    setFastEpisodes(
-                      Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                    )
-                  }
-                  disabled={isAutoRunning || !!pendingStep}
-                />
-              </label>
-            </div>
-            <div className="q-btn-row">
-              <button
-                className="q-btn q-btn-primary"
-                onClick={handleFastTraining}
-                disabled={isAutoRunning || !canTrain || editMode || !!pendingStep}
-              >
-                Kör snabbträning
-              </button>
-            </div>
-          </article>
+                <article className="q-controls-card">
+                  <h2>Automatisk träning</h2>
+                  <div className="q-param-grid q-training-fields">
+                    <label className="q-field">
+                      <span>Hastighet</span>
+                      <select
+                        value={animationDelay}
+                        onChange={(event) =>
+                          setAnimationDelay(Number.parseInt(event.target.value, 10))
+                        }
+                        disabled={isAutoRunning || !!pendingStep || !showAnimations}
+                        aria-describedby={!showAnimations ? "q-training-speed-note" : undefined}
+                      >
+                        <option value={700}>Lugn</option>
+                        <option value={420}>Normal</option>
+                        <option value={220}>Snabb</option>
+                        <option value={130}>Turbo</option>
+                      </select>
+                    </label>
+                    <label className="q-field">
+                      <span>Antal episoder</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={trainingEpisodes}
+                        onChange={(event) =>
+                          setTrainingEpisodes(
+                            Math.max(1, Number.parseInt(event.target.value, 10) || 1)
+                          )
+                        }
+                        disabled={isAutoRunning || !!pendingStep}
+                      />
+                    </label>
+                  </div>
+                  <fieldset className="q-epsilon-settings" disabled={isAutoRunning || !!pendingStep}>
+                    <legend>Epsilon under träningen</legend>
+                    <label className="q-field">
+                      <span>Förändring av epsilon</span>
+                      <select value={epsilonSchedule} onChange={(event) => {
+                        const schedule = event.target.value as EpsilonSchedule;
+                        setEpsilonSchedule(schedule);
+                        setEpsilonChange(schedule === "subtract" ? 0.01 : 0.98);
+                      }}>
+                        <option value="constant">Oförändrat</option>
+                        <option value="multiply">Minska med faktor per episod</option>
+                        <option value="subtract">Minska med fast belopp per episod</option>
+                      </select>
+                    </label>
+                    {epsilonSchedule !== "constant" && <div className="q-param-grid q-training-fields">
+                      <label className="q-field">
+                        <span>{epsilonSchedule === "multiply" ? "Faktor per episod" : "Minskning per episod"}</span>
+                        <input type="number" min={0} max={1} step={0.01} value={epsilonChange}
+                          onChange={(event) => setEpsilonChange(clamp01(Number.parseFloat(event.target.value) || 0))} />
+                      </label>
+                      <label className="q-field">
+                        <span>Lägsta epsilon</span>
+                        <input type="number" min={0} max={1} step={0.01} value={epsilonMinimum}
+                          onChange={(event) => setEpsilonMinimum(clamp01(Number.parseFloat(event.target.value) || 0))} />
+                      </label>
+                    </div>}
+                    <p className="q-environment-description">
+                      Aktuellt ε: <strong>{epsilon.toFixed(3)}</strong>.
+                      {epsilonSchedule === "constant"
+                        ? " Samma värde används i varje episod."
+                        : ` Efter varje hel episod ${epsilonSchedule === "multiply" ? `multipliceras ε med ${epsilonChange}` : `minskas ε med ${epsilonChange}`}, ner till ${epsilonMinimum}.`}
+                      {" "}Ändra startvärdet under Parametrar.
+                    </p>
+                  </fieldset>
+                  <label className="q-action-option">
+                    <input
+                      type="checkbox"
+                      checked={showAnimations}
+                      onChange={(event) => setShowAnimations(event.target.checked)}
+                      disabled={isAutoRunning || !!pendingStep}
+                    />
+                    <span>Visa animationer</span>
+                  </label>
+                  {!showAnimations && (
+                    <p className="q-environment-description" id="q-training-speed-note">
+                      Utan animationer körs träningen så snabbt som möjligt.
+                    </p>
+                  )}
+                  <label className="q-action-option">
+                    <input type="checkbox" checked={showBestPath}
+                      onChange={(event) => setShowBestPath(event.target.checked)} disabled={editMode} />
+                    <span>Visa bästa hittade väg</span>
+                  </label>
+                  {showBestPath && <p className="q-environment-description" aria-live="polite">
+                    {bestPath
+                      ? `Bästa lyckade väg: ${bestPath.steps.length} steg, ${bestPath.score.toFixed(2)} poäng. Den röda linjen och Q-tabellens röda ramar visar samma drag.`
+                      : "Ingen väg till målet har hittats ännu. Vägen visas när masken lyckas nå målet."}
+                    {" "}Högst total belöning vinner; vid lika belöning väljs färre steg.
+                  </p>}
+                  <div className="q-btn-row">
+                    <button
+                      className="q-btn q-btn-primary"
+                      onClick={handleTrainingButton}
+                      disabled={!canTrain || editMode || !!pendingStep || stopRequested}
+                    >
+                      {isAutoRunning
+                        ? stopRequested
+                          ? "Stoppar..."
+                          : "Stoppa träning"
+                        : "Starta träning"}
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </details>
           </div>
-        </details>
+        </div>
       </section>
 
     </div>

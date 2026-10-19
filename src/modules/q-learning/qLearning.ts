@@ -2,6 +2,19 @@ export type Action = "right" | "down" | "left" | "up";
 export type TileItem = "none" | "apple" | "bird";
 export type QRow = Record<Action, number>;
 export type QTable = Record<string, QRow>;
+export type EpsilonSchedule = "constant" | "multiply" | "subtract";
+
+export interface PathStep {
+  stateKey: string;
+  positionKey: string;
+  nextPositionKey: string;
+  action: Action;
+}
+
+export interface FoundPath {
+  steps: PathStep[];
+  score: number;
+}
 
 export interface QStateDefinition {
   key: string;
@@ -93,6 +106,8 @@ export interface QEnvironment {
   goalKey: string;
   cellItems: Record<string, TileItem>;
   enabledActions: Action[];
+  stepCost: number;
+  automaticOnly?: boolean;
 }
 
 export const Q_ENVIRONMENTS: QEnvironment[] = [
@@ -104,7 +119,8 @@ export const Q_ENVIRONMENTS: QEnvironment[] = [
     startKey: "1,0",
     goalKey: "2,0",
     cellItems: { "0,0": "bird" },
-    enabledActions: ["left", "right"]
+    enabledActions: ["left", "right"],
+    stepCost: 0
   },
   {
     id: "one-step-further",
@@ -114,7 +130,8 @@ export const Q_ENVIRONMENTS: QEnvironment[] = [
     startKey: "0,0",
     goalKey: "3,0",
     cellItems: {},
-    enabledActions: ["right"]
+    enabledActions: ["right"],
+    stepCost: 0
   },
   {
     id: "around-the-corner",
@@ -124,7 +141,8 @@ export const Q_ENVIRONMENTS: QEnvironment[] = [
     startKey: "0,0",
     goalKey: "1,1",
     cellItems: { "0,1": "apple" },
-    enabledActions: ["right", "down"]
+    enabledActions: ["right", "down"],
+    stepCost: 0
   },
   {
     id: "several-continuations",
@@ -134,7 +152,8 @@ export const Q_ENVIRONMENTS: QEnvironment[] = [
     startKey: "0,0",
     goalKey: "2,1",
     cellItems: { "1,1": "bird" },
-    enabledActions: ["right", "down"]
+    enabledActions: ["right", "down"],
+    stepCost: 0
   },
   {
     id: "apple-on-the-way",
@@ -144,7 +163,20 @@ export const Q_ENVIRONMENTS: QEnvironment[] = [
     startKey: "0,0",
     goalKey: "2,0",
     cellItems: { "0,1": "apple", "0,2": "bird" },
-    enabledActions: ["right", "down"]
+    enabledActions: ["right", "down"],
+    stepCost: 0
+  },
+  {
+    id: "large-apple-hunt",
+    name: "6. Stora äppeljakten (4 × 4)",
+    description: "Följ automatisk träning på en större plan. Masken kan gå i alla fyra riktningar, samla äpplet och undvika två fåglar på vägen till målet.",
+    walkableKeys: Array.from({ length: 16 }, (_, index) => `${index % 4},${Math.floor(index / 4)}`),
+    startKey: "0,0",
+    goalKey: "3,3",
+    cellItems: { "1,1": "bird", "2,2": "bird", "2,1": "apple" },
+    enabledActions: [...ALL_ACTIONS],
+    stepCost: -0.1,
+    automaticOnly: true
   }
 ];
 
@@ -217,6 +249,36 @@ export function alignQTable(previous: QTable, stateKeys: string[]): QTable {
 
 export function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+export function nextEpsilon(
+  current: number,
+  schedule: EpsilonSchedule,
+  change: number,
+  minimum: number
+): number {
+  const epsilon = clamp01(current);
+  if (schedule === "constant") return epsilon;
+  const next = schedule === "multiply"
+    ? epsilon * clamp01(change)
+    : epsilon - clamp01(change);
+  // A minimum must never increase an already lower epsilon.
+  return Math.min(epsilon, Math.max(clamp01(minimum), next));
+}
+
+export function updateBestPath(
+  best: FoundPath | null,
+  steps: PathStep[],
+  outcome: StepOutcome,
+  goalKey: string
+): FoundPath | null {
+  if (!outcome.done || outcome.agentKey !== goalKey || steps.length === 0) return best;
+  const score = outcome.episodeScore;
+  if (!best || score > best.score + 1e-9 ||
+      (Math.abs(score - best.score) < 1e-9 && steps.length < best.steps.length)) {
+    return { score, steps: [...steps] };
+  }
+  return best;
 }
 
 export function roundQValue(value: number): number {
@@ -559,6 +621,7 @@ export interface StepPreviewParameters {
   appleKeys: string[];
   appleIndexByKey: Record<string, number>;
   expandedStateSpace: boolean;
+  stepCost?: number;
 }
 
 export interface StepPreview {
@@ -621,7 +684,7 @@ export function previewStep(params: StepPreviewParameters): StepPreview {
       appleKeys,
       labelMap
     ),
-    reward,
+    reward: roundQValue(reward + (params.stepCost ?? 0)),
     terminal: reachedGoal || hitBird
   };
 }
@@ -643,6 +706,7 @@ export function performStep(params: {
   alpha: number;
   gamma: number;
   epsilon: number;
+  stepCost?: number;
   action?: Action;
 }): StepOutcome | null {
   const {
@@ -693,7 +757,8 @@ export function performStep(params: {
     labelMap,
     appleKeys,
     appleIndexByKey,
-    expandedStateSpace
+    expandedStateSpace,
+    stepCost: params.stepCost
   });
 
   const oldQ = row[action];
@@ -716,7 +781,7 @@ export function performStep(params: {
     agentAppleMask: nextMask,
     reward,
     done: terminal,
-    episodeScore: episodeScore + reward,
+    episodeScore: roundQValue(episodeScore + reward),
     stepCount: stepCount + 1,
     calculation: {
       stateKey: currentStateKey,

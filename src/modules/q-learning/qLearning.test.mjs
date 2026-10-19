@@ -5,6 +5,7 @@ import {
   DEFAULT_ITEMS,
   DEFAULT_START,
   DEFAULT_WALKABLE,
+  ALL_ACTIONS,
   Q_ENVIRONMENTS,
   buildLabelMap,
   createAppleIndexByKey,
@@ -13,11 +14,13 @@ import {
   encodeStateKey,
   getValidActions,
   normalizeAppleMask,
+  nextEpsilon,
   performStep,
   pickAction,
   previewStep,
   roundQValue,
-  shouldExpandAppleStates
+  shouldExpandAppleStates,
+  updateBestPath
 } from "./qLearning.ts";
 
 function setup(environment = Q_ENVIRONMENTS[0]) {
@@ -55,7 +58,8 @@ function setup(environment = Q_ENVIRONMENTS[0]) {
     )),
     alpha: 0.5,
     gamma: 0.9,
-    epsilon: 0.9
+    epsilon: 0.9,
+    stepCost: environment.stepCost
   };
 }
 
@@ -70,8 +74,8 @@ function continueFrom(params, outcome) {
   };
 }
 
-test("five presets have the requested positions, objects, directions and small focused tables", () => {
-  assert.equal(Q_ENVIRONMENTS.length, 5);
+test("the first five presets keep their small focused tables and zero step cost", () => {
+  assert.equal(Q_ENVIRONMENTS.length, 6);
   const expected = [
     [["0,0", "1,0", "2,0"], "1,0", "2,0", { "0,0": "bird" }, ["left", "right"]],
     [["0,0", "1,0", "2,0", "3,0"], "0,0", "3,0", {}, ["right"]],
@@ -79,16 +83,132 @@ test("five presets have the requested positions, objects, directions and small f
     [["0,0", "1,0", "2,0", "1,1", "2,1"], "0,0", "2,1", { "1,1": "bird" }, ["right", "down"]],
     [["0,0", "1,0", "2,0", "0,1", "0,2"], "0,0", "2,0", { "0,1": "apple", "0,2": "bird" }, ["right", "down"]]
   ];
-  Q_ENVIRONMENTS.forEach((environment, index) => {
+  Q_ENVIRONMENTS.slice(0, 5).forEach((environment, index) => {
     assert.deepEqual(
       [environment.walkableKeys, environment.startKey, environment.goalKey, environment.cellItems, environment.enabledActions],
       expected[index]
     );
     assert.ok(environment.description.length > 0);
     assert.equal(setup(environment).expandedStateSpace, false);
+    assert.equal(environment.stepCost, 0);
   });
-  assert.deepEqual(Q_ENVIRONMENTS.map((environment) => Object.keys(setup(environment).qTable).length), [1, 3, 3, 3, 3]);
+  assert.deepEqual(Q_ENVIRONMENTS.slice(0, 5).map((environment) => Object.keys(setup(environment).qTable).length), [1, 3, 3, 3, 3]);
   assert.deepEqual([DEFAULT_WALKABLE, DEFAULT_START, DEFAULT_GOAL, DEFAULT_ITEMS], expected[0].slice(0, 4));
+});
+
+test("the sixth preset is a full 4 by 4 automatic environment with apple memory", () => {
+  const environment = Q_ENVIRONMENTS[5];
+  const params = setup(environment);
+  assert.equal(environment.walkableKeys.length, 16);
+  assert.deepEqual([...params.walkableSet].sort(), Array.from({ length: 16 }, (_, index) =>
+    `${index % 4},${Math.floor(index / 4)}`).sort());
+  assert.equal(environment.startKey, "0,0");
+  assert.equal(environment.goalKey, "3,3");
+  assert.deepEqual(environment.enabledActions, ALL_ACTIONS);
+  assert.equal(Object.values(environment.cellItems).filter(item => item === "bird").length, 2);
+  assert.equal(params.appleKeys.length, 1);
+  assert.equal(environment.stepCost, -0.1);
+  assert.equal(environment.automaticOnly, true);
+  assert.equal(params.expandedStateSpace, true);
+  assert.equal(Object.keys(params.qTable).length, 25);
+});
+
+test("step cost applies to neutral moves, apples, revisits, birds and the goal", () => {
+  const params = setup(Q_ENVIRONMENTS[5]);
+  const neutral = performStep({ ...params, action: "right" });
+  assert.equal(neutral.reward, -0.1);
+  assert.equal(neutral.calculation.newQ, -0.05);
+  const bird = performStep({ ...continueFrom(params, neutral), action: "down" });
+  assert.equal(bird.reward, -2.1);
+  assert.equal(bird.episodeScore, -2.2);
+  assert.equal(bird.done, true);
+
+  let current = params;
+  const rewards = [];
+  for (const action of ["right", "right", "down", "up", "down", "right", "down", "down"]) {
+    const preview = previewStep({ ...current, action });
+    const outcome = performStep({ ...current, action });
+    assert.equal(outcome.reward, preview.reward);
+    rewards.push(outcome.reward);
+    current = continueFrom(params, outcome);
+  }
+  assert.deepEqual(rewards, [-0.1, -0.1, 0.9, -0.1, -0.1, -0.1, -0.1, 1.9]);
+  assert.equal(current.agentKey, params.goalKey);
+  assert.equal(current.episodeScore, 2.2);
+});
+
+test("epsilon schedules decay per episode, respect their floor and never increase epsilon", () => {
+  assert.equal(nextEpsilon(0.9, "constant", 0.5, 1), 0.9);
+  assert.equal(nextEpsilon(0.8, "multiply", 0.5, 0.1), 0.4);
+  assert.equal(nextEpsilon(0.8, "subtract", 0.2, 0.1), 0.6000000000000001);
+  assert.equal(nextEpsilon(0.11, "subtract", 0.2, 0.1), 0.1);
+  assert.equal(nextEpsilon(0.11, "multiply", 0.5, 0.1), 0.1);
+  assert.equal(nextEpsilon(0.02, "multiply", 0.5, 0.1), 0.02);
+  assert.equal(nextEpsilon(0.9, "multiply", 1, 0), 0.9);
+  let epsilon = 0.9;
+  for (let index = 0; index < 200; index += 1) epsilon = nextEpsilon(epsilon, "multiply", 0.98, 0.05);
+  assert.equal(epsilon, 0.05);
+});
+
+test("best paths require a successful goal, maximize score and retain exact apple states and actions", () => {
+  const params = setup(Q_ENVIRONMENTS[5]);
+  let current = params;
+  const steps = [];
+  let best = null;
+  let lastOutcome;
+  for (const action of ["right", "right", "down", "right", "down", "down"]) {
+    const outcome = performStep({ ...current, action });
+    steps.push({ stateKey: outcome.calculation.stateKey, positionKey: current.agentKey,
+      nextPositionKey: outcome.agentKey, action });
+    best = updateBestPath(best, steps, outcome, params.goalKey);
+    if (!outcome.done) assert.equal(best, null);
+    current = continueFrom(params, outcome);
+    lastOutcome = outcome;
+  }
+  assert.equal(best.score, 2.4);
+  assert.equal(best.steps.length, 6);
+  assert.deepEqual(best.steps[2], { stateKey: "2,0|0", positionKey: "2,0", nextPositionKey: "2,1", action: "down" });
+  assert.deepEqual(best.steps[3], { stateKey: "2,1|1", positionKey: "2,1", nextPositionKey: "3,1", action: "right" });
+  assert.equal(updateBestPath(best, steps, { ...lastOutcome, episodeScore: 1.4 }, params.goalKey), best);
+  assert.equal(updateBestPath(best, steps, { ...lastOutcome, agentKey: "1,1", episodeScore: 99 }, params.goalKey), best);
+  const shorter = updateBestPath({ score: best.score, steps: [...steps, ...steps] }, steps, lastOutcome, params.goalKey);
+  assert.equal(shorter.steps.length, 6);
+  steps.pop();
+  assert.equal(best.steps.length, 6);
+});
+
+test("seeded automatic training with epsilon decay learns a safe six-step apple route", (t) => {
+  let seed = 37;
+  t.mock.method(Math, "random", () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  });
+  const params = setup(Q_ENVIRONMENTS[5]);
+  let qTable = params.qTable;
+  let epsilon = 0.9;
+  for (let episode = 0; episode < 1000; episode += 1) {
+    let current = { ...params, qTable, epsilon };
+    for (let step = 0; step < 220; step += 1) {
+      const outcome = performStep(current);
+      assert.ok(outcome);
+      current = { ...continueFrom(params, outcome), epsilon };
+      if (outcome.done) break;
+    }
+    qTable = current.qTable;
+    epsilon = nextEpsilon(epsilon, "multiply", 0.98, 0.05);
+  }
+  let current = { ...params, qTable, epsilon: 0 };
+  let outcome;
+  for (let step = 0; step < 20; step += 1) {
+    outcome = performStep(current);
+    current = { ...continueFrom(params, outcome), epsilon: 0 };
+    if (outcome.done) break;
+  }
+  assert.equal(outcome.done, true);
+  assert.equal(outcome.agentKey, params.goalKey);
+  assert.equal(outcome.agentAppleMask, 1);
+  assert.equal(outcome.stepCount, 6);
+  assert.equal(outcome.episodeScore, 2.4);
 });
 
 test("terminal goal and bird rewards ignore continuation values and leave the original table intact", () => {

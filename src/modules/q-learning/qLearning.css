@@ -34,6 +34,13 @@
   align-items: start;
 }
 
+.q-learning-side-panels {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+}
+
 .q-card {
   min-width: 0;
   border: 1px solid var(--line);
@@ -159,6 +166,48 @@
   display: grid;
   gap: var(--q-cell-gap);
   justify-content: center;
+  position: relative;
+  width: max-content;
+  margin-inline: auto;
+}
+
+.q-best-path-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.q-best-path-overlay polyline {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.q-best-path-halo {
+  stroke: #fff;
+  stroke-width: 7px;
+}
+
+.q-best-path-line {
+  stroke: #c72d35;
+  stroke-width: 3.5px;
+}
+
+.q-cell-best-path {
+  outline: 2px solid #c72d35;
+  outline-offset: -2px;
+}
+
+.q-path-note {
+  margin: 0;
+  color: #a51f2b;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 .q-cell {
@@ -383,6 +432,16 @@
   font-weight: 700;
 }
 
+.q-table-highlighting-path td.q-table-updated:not(.q-table-best-path) {
+  box-shadow: inset 0 0 0 2px var(--q-blue);
+}
+
+.q-table td.q-table-best-path {
+  background: #fff1ee;
+  box-shadow: inset 0 0 0 3px #c72d35;
+  font-weight: 700;
+}
+
 .q-cell-values {
   display: inline-flex;
   align-items: baseline;
@@ -457,7 +516,7 @@
 .q-controls-grid {
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .q-controls-card {
@@ -481,6 +540,32 @@
   display: grid;
   gap: 0.6rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.q-training-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.q-step-cost-field {
+  margin-block: 0.7rem 0.4rem;
+  max-width: 12rem;
+}
+
+.q-epsilon-settings {
+  min-width: 0;
+  margin: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.q-epsilon-settings legend {
+  padding-inline: 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0a4f73;
 }
 
 .q-advanced {
