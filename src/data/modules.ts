@@ -7,6 +7,7 @@ import avstandImage from "../assets/module-images/avstand.png";
 import normaliseringImage from "../assets/module-images/normalisering.png";
 import qLearningImage from "../assets/module-images/q-learning.png";
 import nimImage from "../assets/module-images/nim.svg";
+import languageModelImage from "../assets/module-images/language-model.svg";
 
 export const visualizationModules: LearningModule[] = [
   {
@@ -110,6 +111,20 @@ export const visualizationModules: LearningModule[] = [
 ];
 
 export const labModules: LearningModule[] = [
+  {
+    id: "language-model",
+    title: "En token i taget",
+    slug: "sprakmodell",
+    imageUrl: languageModelImage,
+    description:
+      "Följ hur en språkmodell genererar ett svar token för token. Utforska sannolikheter, slump och temperatur.",
+    category: "Språkmodeller",
+    targetGroup: "Gymnasiet / vuxenutbildning",
+    route: "/laborationer/sprakmodell",
+    type: "lab",
+    status: "ready",
+    keywords: ["språkmodell", "LLM", "tokens", "sannolikhet", "temperatur", "generering"]
+  },
   {
     id: "nim",
     title: "Nim – träna en AI",

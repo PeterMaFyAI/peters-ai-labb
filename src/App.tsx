@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import AboutPage from "./pages/AboutPage";
@@ -14,6 +15,8 @@ import AvstandPage from "./modules/avstand/AvstandPage";
 import NormaliseringPage from "./modules/normalisering/NormaliseringPage";
 import QLearningPage from "./modules/q-learning/QLearningPage";
 import NimPage from "./modules/nim/NimPage";
+
+const LanguageModelPage = lazy(() => import("./modules/language-model/LanguageModelPage"));
 
 function App(): JSX.Element {
   return (
@@ -46,6 +49,7 @@ function App(): JSX.Element {
         <Route path="visualiseringar/q-learning" element={<QLearningPage />} />
         <Route path="laborationer" element={<LabsPage />} />
         <Route path="laborationer/nim" element={<NimPage />} />
+        <Route path="laborationer/sprakmodell" element={<Suspense fallback={<div className="container page-flow">Laddar laborationen…</div>}><LanguageModelPage /></Suspense>} />
         <Route path="om-portalen" element={<AboutPage />} />
         <Route path="hem" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFoundPage />} />
